@@ -1058,6 +1058,67 @@ export const GeminiChatBot = ({ showToast }) => {
             onChange={handleFileChange}
           />
 
+          {/* Prominent Quick Voice Dictation Bar */}
+          <div
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: '#475569', fontWeight: 600 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Mic size={13} style={{ color: '#4f46e5' }} /> Quick Voice Dictation Shortcuts:
+              </span>
+              {micError && (
+                <span style={{ color: '#b45309', fontSize: '0.7rem', fontWeight: 500 }}>
+                  Mic restricted in iframe • Click shortcut
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: '6px',
+                overflowX: 'auto',
+                paddingBottom: '2px',
+              }}
+            >
+              {[
+                { label: '🎙️ "Report broken AC in Tech Block Room 304"', text: 'Report broken AC in Tech Block Room 304' },
+                { label: '🎙️ "Water leakage in Washroom"', text: 'Water leakage in Washroom' },
+                { label: '🎙️ "Wi-Fi router down in Library"', text: 'Wi-Fi router down in Central Library' },
+                { label: '🎙️ "Sparking wire in Room 102"', text: 'Sparking wire in Electrical Room 102' },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    if (showToast) showToast(`Simulating voice dictation: "${item.text}"`, 'info');
+                    handleSend(item.text);
+                  }}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '14px',
+                    padding: '4px 10px',
+                    fontSize: '0.72rem',
+                    color: '#334155',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Chat Form Input */}
           <form
             onSubmit={(e) => {
