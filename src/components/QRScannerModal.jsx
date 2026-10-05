@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, QrCode, Camera, Building, Search, CheckCircle2, Sparkles, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, QrCode, Camera, Building, Search, CheckCircle2, Sparkles, ArrowRight, AlertCircle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { locationsApi } from '../api/locations';
 
 export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast }) => {
@@ -8,15 +9,12 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
   const [searchQuery, setSearchQuery] = useState('');
   const [isScanningMode, setIsScanningMode] = useState(true);
   const [scannedLocation, setScannedLocation] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  
+  const html5QrCodeRef = useRef(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadLocations();
-      setScannedLocation(null);
-    }
-  }, [isOpen]);
-
-  const loadLocations = async () => {
+  const loadLocations = useCallback(async () => {
     setLoading(true);
     try {
       const data = await locationsApi.getLocations();
@@ -27,7 +25,107 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  const handleDecodedText = useCallback((text) => {
+    try {
+      let locId = text;
+      if (text.startsWith('{')) {
+        const parsed = JSON.parse(text);
+        locId = parsed.location_id || parsed.id || text;
+      } else if (text.includes('location_id=')) {
+        const urlParams = new URLSearchParams(text.split('?')[1]);
+        locId = urlParams.get('location_id') || text;
+      }
+
+      const found = locations.find(l => l.id.toLowerCase() === locId.toLowerCase());
+      if (found) {
+        setScannedLocation(found);
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+          html5QrCodeRef.current.stop().catch(() => {});
+        }
+        setCameraActive(false);
+        if (showToast) showToast(`QR Scanned successfully: ${found.building} - ${found.room}`, 'success');
+      } else {
+        if (showToast) showToast(`Scanned QR code ID '${locId}' not recognized in campus registry.`, 'warning');
+      }
+    } catch {
+      const found = locations.find(l => l.id.toLowerCase() === text.toLowerCase());
+      if (found) {
+        setScannedLocation(found);
+        setCameraActive(false);
+      }
+    }
+  }, [locations, showToast]);
+
+  const stopCamera = useCallback(async () => {
+    try {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        await html5QrCodeRef.current.stop();
+        await html5QrCodeRef.current.clear();
+      }
+    } catch (err) {
+      console.warn('Stop camera error:', err);
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError('');
+    setTimeout(async () => {
+      try {
+        if (!document.getElementById('reader')) return;
+        if (!html5QrCodeRef.current) {
+          html5QrCodeRef.current = new Html5Qrcode('reader');
+        }
+        
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          const cameraId = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'))?.id || devices[0].id;
+
+          await html5QrCodeRef.current.start(
+            cameraId,
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => {
+              handleDecodedText(decodedText);
+            },
+            () => {}
+          );
+          setCameraActive(true);
+        } else {
+          setCameraError('No camera detected on this device. Please use quick simulate below.');
+        }
+      } catch (err) {
+        console.warn('Camera start error:', err);
+        setCameraError('Camera access denied or unavailable. Please select from directory or tap quick simulate.');
+        setCameraActive(false);
+      }
+    }, 300);
+  }, [handleDecodedText]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadLocations();
+      setScannedLocation(null);
+      setCameraError('');
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, loadLocations, stopCamera]);
+
+  useEffect(() => {
+    if (isOpen && isScanningMode) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, isScanningMode, startCamera, stopCamera]);
 
   if (!isOpen) return null;
 
@@ -44,12 +142,13 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
 
   const handleSimulateScan = (loc) => {
     setScannedLocation(loc);
-    setIsScanningMode(false);
+    stopCamera();
   };
 
   const handleConfirmLocation = (loc) => {
     const chosen = loc || scannedLocation;
     if (chosen && onSelectLocation) {
+      stopCamera();
       onSelectLocation(chosen);
       onClose();
     }
@@ -94,12 +193,15 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
                 Smart QR Campus Location Scanner
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Scan or select classroom, lab, or hostel QR code for instant auto-prefill.
+                Scan device camera or select classroom, lab, or hostel QR code for instant auto-prefill.
               </p>
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
             style={{
               background: '#f1f5f9',
               border: 'none',
@@ -149,7 +251,10 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
             <Camera size={16} /> QR Camera Viewfinder
           </button>
           <button
-            onClick={() => setIsScanningMode(false)}
+            onClick={() => {
+              stopCamera();
+              setIsScanningMode(false);
+            }}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -171,7 +276,7 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
           </button>
         </div>
 
-        {/* View 1: Camera Scanner Simulation & Quick Targets */}
+        {/* View 1: Camera Scanner Viewfinder & Quick Targets */}
         {isScanningMode && (
           <div>
             <div
@@ -179,7 +284,7 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
                 position: 'relative',
                 background: '#0f172a',
                 borderRadius: '16px',
-                height: '240px',
+                minHeight: '260px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -188,40 +293,24 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
                 border: '2px solid #334155',
                 color: 'white',
                 marginBottom: '16px',
+                padding: '12px',
               }}
             >
-              {/* Reticle / Viewfinder Frame */}
-              <div
-                style={{
-                  position: 'relative',
-                  width: '160px',
-                  height: '160px',
-                  border: '2px solid rgba(99, 102, 241, 0.7)',
-                  borderRadius: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 25px rgba(99, 102, 241, 0.4)',
-                }}
-              >
-                {/* Laser scan line animation */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    right: '0',
-                    height: '2px',
-                    background: '#818cf8',
-                    boxShadow: '0 0 10px #818cf8',
-                    animation: 'scanLine 2s linear infinite alternate',
-                  }}
-                />
-                <QrCode size={64} style={{ opacity: 0.35, color: '#e0e7ff' }} />
-              </div>
-              <p style={{ marginTop: '14px', fontSize: '0.8rem', color: '#94a3b8' }}>
-                Position QR code inside viewfinder frame
-              </p>
+              {/* Real Camera Reader Element */}
+              <div id="reader" style={{ width: '100%', maxWidth: '320px', borderRadius: '12px', overflow: 'hidden' }} />
+
+              {cameraError && (
+                <div style={{ textAlign: 'center', padding: '16px', color: '#fca5a5', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={16} /> {cameraError}
+                </div>
+              )}
+
+              {!cameraActive && !cameraError && (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Camera size={36} style={{ opacity: 0.5, marginBottom: '8px' }} />
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Initializing device camera...</p>
+                </div>
+              )}
             </div>
 
             {/* Quick simulated scan triggers */}
@@ -240,7 +329,7 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
                 }}
               >
                 <Sparkles size={14} color="var(--primary-600)" />
-                Tap a Campus Location to Simulate Instant QR Scan:
+                Or Tap a Campus Location for Instant Scan:
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -316,7 +405,7 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
                   </div>
                   <div>
                     <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>
-                      QR Code Decoded Successfully
+                      QR Code Scanned Successfully
                     </div>
                     <div style={{ fontSize: '0.98rem', fontWeight: 700, color: '#0f172a' }}>
                       {scannedLocation.building} – {scannedLocation.room}
@@ -468,13 +557,6 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
             </div>
           </div>
         )}
-
-        <style>{`
-          @keyframes scanLine {
-            0% { top: 0%; }
-            100% { top: 98%; }
-          }
-        `}</style>
       </div>
     </div>
   );

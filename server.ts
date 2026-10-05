@@ -165,7 +165,7 @@ const users: User[] = [
     username: 'admin',
     email: 'admin@campusfix.edu',
     password: 'Admin@123',
-    name: 'Chief Administrator',
+    name: 'Dr. R. Natarajan',
     role: 'ADMIN',
     department: 'Campus Facilities & Operations',
     phone: '+91 98401 01100',
@@ -176,7 +176,7 @@ const users: User[] = [
     username: 'student',
     email: 'student@campusfix.edu',
     password: 'Student@123',
-    name: 'Alex Rivera',
+    name: 'Harikrishna GM',
     role: 'STUDENT',
     department: 'Computer Science & Engineering',
     phone: '+91 98840 56789',
@@ -187,7 +187,7 @@ const users: User[] = [
     username: 'emma',
     email: 'emma.watson@campusfix.edu',
     password: 'Student@123',
-    name: 'Emma Watson',
+    name: 'Ananya Swaminathan',
     role: 'STUDENT',
     department: 'Mechanical Engineering',
     phone: '+91 94441 67890',
@@ -198,7 +198,7 @@ const users: User[] = [
     username: 'david_staff',
     email: 'staff@campusfix.edu',
     password: 'Staff@123',
-    name: 'David Miller',
+    name: 'Rajesh Sharma',
     role: 'STAFF',
     department: 'Electrical & Facilities',
     phone: '+91 97908 12345',
@@ -209,7 +209,7 @@ const users: User[] = [
 const staffProfiles: StaffMember[] = [
   {
     id: 1,
-    name: 'David Miller',
+    name: 'Rajesh Sharma',
     email: 'staff@campusfix.edu',
     phone: '+91 97908 12345',
     department: 'Electrical Maintenance',
@@ -219,8 +219,8 @@ const staffProfiles: StaffMember[] = [
   },
   {
     id: 2,
-    name: 'Sarah Jenkins',
-    email: 'sarah.jenkins@campusfix.edu',
+    name: 'Priya Sundaram',
+    email: 'priya.sundaram@campusfix.edu',
     phone: '+91 98412 34567',
     department: 'HVAC & Climate Control',
     specialization: 'Air Conditioning & Ventilation',
@@ -229,8 +229,8 @@ const staffProfiles: StaffMember[] = [
   },
   {
     id: 3,
-    name: 'Robert Chen',
-    email: 'robert.chen@campusfix.edu',
+    name: 'Karthik Raja',
+    email: 'karthik.raja@campusfix.edu',
     phone: '+91 98845 67891',
     department: 'IT Infrastructure',
     specialization: 'Wi-Fi / Fiber Optic Networks',
@@ -239,8 +239,8 @@ const staffProfiles: StaffMember[] = [
   },
   {
     id: 4,
-    name: 'Michael Vance',
-    email: 'michael.vance@campusfix.edu',
+    name: 'Suresh Balaji',
+    email: 'suresh.balaji@campusfix.edu',
     phone: '+91 94450 78912',
     department: 'Civil & Plumbing',
     specialization: 'Plumbing, Water Supply & Drainage',
@@ -249,8 +249,8 @@ const staffProfiles: StaffMember[] = [
   },
   {
     id: 5,
-    name: 'Carlos Gomez',
-    email: 'carlos.gomez@campusfix.edu',
+    name: 'Ramesh Kumar',
+    email: 'ramesh.kumar@campusfix.edu',
     phone: '+91 97910 23456',
     department: 'Carpentry & Facilities',
     specialization: 'Desks, Benches & Acoustic Paneling',
@@ -1285,6 +1285,31 @@ Respond strictly in JSON matching the schema.
       const ai = getGeminiClient();
       if (ai) {
         try {
+          // If there are previous messages, use multi-turn chat session or full contents array
+          const history = contents.slice(0, -1);
+          const latestMessage = contents[contents.length - 1]?.parts[0]?.text || '';
+
+          const chatSession = ai.chats.create({
+            model: modelToUse,
+            history: history.length > 0 ? history : undefined,
+            config: {
+              systemInstruction: instruction,
+            },
+          });
+
+          const chatResponse = await chatSession.sendMessage({
+            message: latestMessage,
+          });
+
+          if (chatResponse.text) {
+            return res.status(200).json({
+              reply: chatResponse.text,
+              modelUsed: 'CampusFix AI (gemini-3.8-flash)',
+            });
+          }
+        } catch (genErr) {
+          console.warn('Gemini chat session notice:', genErr);
+          // Fallback to standard generateContent with full contents array
           const response = await ai.models.generateContent({
             model: modelToUse,
             contents,
@@ -1298,8 +1323,6 @@ Respond strictly in JSON matching the schema.
               modelUsed: 'CampusFix AI (gemini-3.8-flash)',
             });
           }
-        } catch (genErr) {
-          console.warn('Gemini chat generateContent notice: using campus facility assistant rules');
         }
       }
     } catch (err) {
@@ -1308,20 +1331,28 @@ Respond strictly in JSON matching the schema.
 
     // Dynamic contextual fallback response when AI is offline
     const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
-    let fallbackReply = `Hello! I'm your CampusFix Facility Assistant. I can assist you with reporting campus maintenance issues, checking ticket resolution status, or finding emergency contact numbers. How can I help you today?`;
+    let fallbackReply = `I understand you're asking about "${messages[messages.length - 1]?.content || 'campus maintenance'}". To report or get assistance, please use the '+ Report Issue' button above, specify the building and room location, and select the appropriate category (Electrical, Plumbing, Furniture, Wi-Fi, etc.). Our facility team will address it promptly.`;
 
-    if (lastUserMsg.includes('spark') || lastUserMsg.includes('wire') || lastUserMsg.includes('fire') || lastUserMsg.includes('flood') || lastUserMsg.includes('emergency')) {
+    if (lastUserMsg.includes('spark') || lastUserMsg.includes('wire') || lastUserMsg.includes('fire') || lastUserMsg.includes('flood') || lastUserMsg.includes('emergency') || lastUserMsg.includes('danger')) {
       fallbackReply = `⚠️ Safety Hazard Alert: If you see sparking wires, active fire, or severe flooding, please evacuate the area immediately. Contact the Campus 24/7 Emergency Line at +91 44 2715 6750 or submit a ticket with "Critical" priority.`;
-    } else if (lastUserMsg.includes('wifi') || lastUserMsg.includes('internet') || lastUserMsg.includes('network')) {
-      fallbackReply = `For campus Wi-Fi or network connectivity issues, please specify the exact building and room number (e.g. Technology Block C, Lab 304) when filing your complaint so IT Infrastructure technicians can diagnose the access point.`;
-    } else if (lastUserMsg.includes('ac') || lastUserMsg.includes('fan') || lastUserMsg.includes('cooling') || lastUserMsg.includes('air conditioning')) {
-      fallbackReply = `For AC or ceiling fan issues, submit a ticket under the "Fan/AC" category. Our HVAC team handles filter cleaning, refrigerant top-ups, and thermostat calibrations.`;
-    } else if (lastUserMsg.includes('leak') || lastUserMsg.includes('water') || lastUserMsg.includes('tap') || lastUserMsg.includes('pipe') || lastUserMsg.includes('plumbing')) {
-      fallbackReply = `For water leakage or plumbing faults, please report the building and floor so Civil & Plumbing technicians can isolate the line promptly.`;
-    } else if (lastUserMsg.includes('status') || lastUserMsg.includes('track') || lastUserMsg.includes('ticket') || lastUserMsg.includes('cmp-')) {
+    } else if (lastUserMsg.includes('wifi') || lastUserMsg.includes('internet') || lastUserMsg.includes('network') || lastUserMsg.includes('router') || lastUserMsg.includes('lan')) {
+      fallbackReply = `For campus Wi-Fi or network connectivity issues, please specify the exact building and room number (e.g. Technology Block C, Lab 304) when filing your complaint so IT Infrastructure technician Karthik Raja can diagnose the access point.`;
+    } else if (lastUserMsg.includes('ac') || lastUserMsg.includes('fan') || lastUserMsg.includes('cooling') || lastUserMsg.includes('air conditioning') || lastUserMsg.includes('ventilation')) {
+      fallbackReply = `For AC or ceiling fan issues, submit a ticket under the "Fan/AC" category. Our HVAC team specialist Priya Sundaram handles filter cleaning, refrigerant top-ups, and thermostat calibrations.`;
+    } else if (lastUserMsg.includes('leak') || lastUserMsg.includes('water') || lastUserMsg.includes('tap') || lastUserMsg.includes('pipe') || lastUserMsg.includes('plumbing') || lastUserMsg.includes('drain')) {
+      fallbackReply = `For water leakage or plumbing faults, please report the building and floor so Civil & Plumbing technician Suresh Balaji can isolate the line promptly.`;
+    } else if (lastUserMsg.includes('furniture') || lastUserMsg.includes('desk') || lastUserMsg.includes('chair') || lastUserMsg.includes('bench') || lastUserMsg.includes('table') || lastUserMsg.includes('door') || lastUserMsg.includes('carpentry')) {
+      fallbackReply = `For broken desks, chairs, benches, or doors, please file a ticket under the "Furniture" category. Our Carpentry specialist Ramesh Kumar will inspect and repair the woodwork.`;
+    } else if (lastUserMsg.includes('projector') || lastUserMsg.includes('smart board') || lastUserMsg.includes('audio') || lastUserMsg.includes('screen') || lastUserMsg.includes('mic')) {
+      fallbackReply = `For classroom projector or AV equipment problems, file a ticket under "Projector" or "Classroom". IT & AV support will calibrate or replace lamps.`;
+    } else if (lastUserMsg.includes('clean') || lastUserMsg.includes('dust') || lastUserMsg.includes('garbage') || lastUserMsg.includes('washroom') || lastUserMsg.includes('toilet')) {
+      fallbackReply = `For cleaning and sanitation issues in classrooms or hostels, submit a ticket under "Cleaning". Housekeeping supervisors will dispatch staff immediately.`;
+    } else if (lastUserMsg.includes('status') || lastUserMsg.includes('track') || lastUserMsg.includes('ticket') || lastUserMsg.includes('cmp-') || lastUserMsg.includes('progress')) {
       fallbackReply = `You can track live ticket progress directly on your Student or Staff dashboard. Complaints progress through Submitted → Under Review → Assigned → In Progress → Resolved with live SLA countdowns.`;
-    } else if (lastUserMsg.includes('hello') || lastUserMsg.includes('hi') || lastUserMsg.includes('vanakkam')) {
-      fallbackReply = `Welcome to CampusFix! You can ask me how to report an issue, check SLA response times, or look up technician assignments across campus departments.`;
+    } else if (lastUserMsg.includes('staff') || lastUserMsg.includes('technician') || lastUserMsg.includes('admin') || lastUserMsg.includes('contact')) {
+      fallbackReply = `Our maintenance team is led by Dr. R. Natarajan (Admin), supported by specialized technicians: Rajesh Sharma (Electrical), Priya Sundaram (HVAC), Karthik Raja (IT), Suresh Balaji (Plumbing), and Ramesh Kumar (Carpentry).`;
+    } else if (lastUserMsg.includes('hello') || lastUserMsg.includes('hi') || lastUserMsg.includes('vanakkam') || lastUserMsg.includes('help')) {
+      fallbackReply = `Welcome to CampusFix! I am your AI Facility Assistant. You can ask me about reporting issues, checking SLA response times, tracking work orders, or contacting campus maintenance technicians.`;
     }
 
     return res.status(200).json({
