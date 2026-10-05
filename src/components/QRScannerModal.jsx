@@ -300,8 +300,13 @@ export const QRScannerModal = ({ isOpen, onClose, onSelectLocation, showToast })
               <div id="reader" style={{ width: '100%', maxWidth: '320px', borderRadius: '12px', overflow: 'hidden' }} />
 
               {cameraError && (
-                <div style={{ textAlign: 'center', padding: '16px', color: '#fca5a5', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertCircle size={16} /> {cameraError}
+                <div style={{ textAlign: 'center', padding: '16px 20px', color: '#cbd5e1', fontSize: '0.84rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#818cf8', fontWeight: 600 }}>
+                    <Camera size={16} /> QR Camera Viewfinder
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', maxWidth: '380px', lineHeight: '1.4' }}>
+                    Camera access is restricted in this window. Select any location below or tap 'Campus Location Directory' to test instant QR decoding!
+                  </p>
                 </div>
               )}
 
