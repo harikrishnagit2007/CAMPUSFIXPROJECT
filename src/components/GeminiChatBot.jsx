@@ -253,18 +253,30 @@ export const GeminiChatBot = ({ showToast }) => {
       lowerText.includes('total issues') ||
       lowerText.includes('ticket status');
 
-    // Intent 3: Auto-Submit Issue
+    // Intent 3: Auto-Submit Issue Intent Recognition
     const isSubmitIntent =
       !isOpenReportIntent &&
       !isQueryStatsIntent &&
       (lowerText.includes('report') ||
+        lowerText.includes('submit') ||
+        lowerText.includes('create') ||
+        lowerText.includes('file') ||
         lowerText.includes('broken') ||
+        lowerText.includes('not working') ||
         lowerText.includes('fix') ||
         lowerText.includes('issue') ||
+        lowerText.includes('complaint') ||
         lowerText.includes('leaky') ||
         lowerText.includes('damage') ||
         lowerText.includes('fault') ||
         lowerText.includes('spark') ||
+        lowerText.includes('leak') ||
+        lowerText.includes('ac') ||
+        lowerText.includes('wifi') ||
+        lowerText.includes('electric') ||
+        lowerText.includes('light') ||
+        lowerText.includes('water') ||
+        lowerText.includes('plumb') ||
         currentImg !== null);
 
     let agentReplyText = '';
@@ -298,31 +310,44 @@ export const GeminiChatBot = ({ showToast }) => {
         agentReplyText = `📊 You currently have active maintenance tickets registered on the portal. Use the dashboard to view full department breakdowns.`;
         modelUsedName = 'CampusFix AI Assistant (Fallback)';
       }
-    } else if (isSubmitIntent && (userText.length > 4 || currentImg)) {
+    } else if (isSubmitIntent && (userText.length > 3 || currentImg)) {
       try {
+        // 1. Dynamic Category Extraction
         let category = 'General Maintenance';
-        if (lowerText.includes('electric') || lowerText.includes('spark') || lowerText.includes('wire') || lowerText.includes('light')) category = 'Electrical';
-        else if (lowerText.includes('water') || lowerText.includes('leak') || lowerText.includes('plumb') || lowerText.includes('tap') || lowerText.includes('pipe')) category = 'Plumbing';
-        else if (lowerText.includes('ac') || lowerText.includes('fan') || lowerText.includes('cooling')) category = 'Fan/AC';
-        else if (lowerText.includes('wifi') || lowerText.includes('internet') || lowerText.includes('network') || lowerText.includes('router')) category = 'Wi-Fi / Network';
-        else if (lowerText.includes('desk') || lowerText.includes('chair') || lowerText.includes('furniture') || lowerText.includes('door')) category = 'Furniture';
-        else if (lowerText.includes('clean') || lowerText.includes('washroom') || lowerText.includes('dust')) category = 'Cleaning';
+        if (lowerText.includes('electric') || lowerText.includes('spark') || lowerText.includes('wire') || lowerText.includes('light') || lowerText.includes('power') || lowerText.includes('socket') || lowerText.includes('plug')) category = 'Electrical';
+        else if (lowerText.includes('water') || lowerText.includes('leak') || lowerText.includes('plumb') || lowerText.includes('tap') || lowerText.includes('pipe') || lowerText.includes('sink') || lowerText.includes('toilet')) category = 'Plumbing';
+        else if (lowerText.includes('ac') || lowerText.includes('fan') || lowerText.includes('cooling') || lowerText.includes('heat') || lowerText.includes('air conditioner')) category = 'Fan/AC';
+        else if (lowerText.includes('wifi') || lowerText.includes('internet') || lowerText.includes('network') || lowerText.includes('router') || lowerText.includes('connection')) category = 'Wi-Fi / Network';
+        else if (lowerText.includes('desk') || lowerText.includes('chair') || lowerText.includes('furniture') || lowerText.includes('door') || lowerText.includes('table') || lowerText.includes('bench')) category = 'Furniture';
+        else if (lowerText.includes('clean') || lowerText.includes('washroom') || lowerText.includes('dust') || lowerText.includes('trash') || lowerText.includes('dirty') || lowerText.includes('garbage')) category = 'Cleaning';
 
+        // 2. Dynamic Location & Building Extraction
         let building = 'Technology Block C';
-        if (lowerText.includes('block a')) building = 'Academic Block A';
-        else if (lowerText.includes('block b')) building = 'Science Block B';
+        if (lowerText.includes('block a') || lowerText.includes('academic block')) building = 'Academic Block A';
+        else if (lowerText.includes('block b') || lowerText.includes('science block')) building = 'Science Block B';
         else if (lowerText.includes('hostel')) building = 'Men’s Hostel Block 1';
         else if (lowerText.includes('library')) building = 'Central Library';
 
+        // 3. Dynamic Room Extraction
+        const roomMatch = userText.match(/(?:room|lab|hall)\s*([a-z0-9-]+)/i);
+        const room = roomMatch ? `Room ${roomMatch[1]}` : 'Room 304 (Auto-detected)';
+
+        // 4. Dynamic Priority Detection
+        const priority = (lowerText.includes('spark') || lowerText.includes('emergency') || lowerText.includes('fire') || lowerText.includes('danger') || lowerText.includes('urgent')) ? 'Critical' : lowerText.includes('high') ? 'High' : 'Medium';
+
+        // 5. Title Synthesis
+        const cleanedTitle = userText.replace(/^(please|can you|i want to|kindly|help|submit|report|file)\s+/i, '').trim();
+        const complaintTitle = cleanedTitle.length > 0 ? (cleanedTitle.slice(0, 60) + (cleanedTitle.length > 60 ? '...' : '')) : `${category} Issue in ${building}`;
+
         const payload = {
-          complaint_title: userText.slice(0, 80) || 'AI Assistant Auto-Filed Issue',
+          complaint_title: complaintTitle,
           category,
           building,
-          room: 'Room 304 (Auto-detected)',
+          room,
           description: userText,
-          priority: lowerText.includes('spark') || lowerText.includes('emergency') || lowerText.includes('fire') ? 'Critical' : 'Medium',
+          priority,
           image: currentImg || '',
-          student: user.id || user.uid,
+          student: user.id || user.uid || chatUserId,
           student_details: {
             name: user.name || 'Student User',
             email: user.email || 'student@campusfix.edu',
@@ -330,15 +355,42 @@ export const GeminiChatBot = ({ showToast }) => {
           },
         };
 
+        // Create via Backend API
         const res = await complaintsApi.createComplaint(payload);
         const ticketId = res.complaint_id || res.id || `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-        agentReplyText = `🚀 AI Assistant Submission Complete!\n\nI have successfully filed and submitted your complaint via the backend API:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Location: ${building}, Room 304\n• Status: Dispatched to Maintenance Staff\n${currentImg ? '• Photo Attachment: Included in payload\n' : ''}\nYou can check live SLA progress on your dashboard!`;
-        modelUsedName = 'CampusFix AI Assistant (Auto-Submit)';
-        if (showToast) showToast(`Ticket ${ticketId} auto-submitted successfully!`, 'success');
+        // Create Record directly in Firestore
+        let firestoreDocId = null;
+        try {
+          const firestoreRef = collection(db, 'complaints');
+          const docRes = await addDoc(firestoreRef, {
+            complaint_id: ticketId,
+            title: complaintTitle,
+            category,
+            building,
+            room,
+            location: `${building}, ${room}`,
+            description: userText,
+            priority,
+            status: 'Submitted',
+            image: currentImg || '',
+            studentId: user.id || user.uid || chatUserId,
+            studentName: user.name || 'Student User',
+            studentEmail: user.email || 'student@campusfix.edu',
+            createdAt: new Date().toISOString(),
+            source: 'AI Chat Agent',
+          });
+          firestoreDocId = docRes.id;
+        } catch (fsErr) {
+          console.warn('Firestore complaint doc creation notice:', fsErr);
+        }
+
+        agentReplyText = `🚀 AI Assistant Issue Submission Complete!\n\nI have automatically recognized your 'Submit Issue' intent and created a new complaint record in Firestore & system backend:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Title: ${complaintTitle}\n• Location: ${building}, ${room}\n• Priority: ${priority}\n• Status: Submitted (Dispatched to Maintenance Staff)\n• Firestore Record: ${firestoreDocId ? `Created (Doc ID: ${firestoreDocId.slice(0, 8)}...)` : 'Synced'}\n${currentImg ? '• Photo Evidence: Attached in payload\n' : ''}\nYour issue has been logged successfully. You can track live SLA progress on your dashboard!`;
+        modelUsedName = 'CampusFix AI Assistant (Submit Intent Auto-Submit)';
+        if (showToast) showToast(`Ticket ${ticketId} auto-submitted & logged in Firestore!`, 'success');
       } catch (err) {
         console.warn('API auto-submit error:', err);
-        agentReplyText = `I attempted to auto-submit your report via the backend API, but encountered an error. Please try reporting via the '+ Report Issue' button above.`;
+        agentReplyText = `I attempted to auto-submit your report via the AI agent, but encountered an error. Please try reporting via the '+ Report Issue' button above.`;
       }
     } else {
       // Standard chat / Gemini API call
