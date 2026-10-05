@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role and contact information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["STUDENT", "ADMIN", "STAFF"] },
+        "department": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Maintenance complaint reported on campus",
+      "type": "object",
+      "properties": {
+        "formatted_id": { "type": "string" },
+        "student_uid": { "type": "string" },
+        "student_name": { "type": "string" },
+        "student_email": { "type": "string" },
+        "student_department": { "type": "string" },
+        "complaint_title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "location": { "type": "string" },
+        "location_id": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"] },
+        "status": { "type": "string", "enum": ["Submitted", "Under Review", "Assigned", "In Progress", "Resolved", "Rejected"] },
+        "assigned_staff_id": { "type": "number" },
+        "assigned_staff_name": { "type": "string" },
+        "image": { "type": "string" },
+        "is_emergency": { "type": "boolean" },
+        "is_escalated": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["complaint_title", "description", "category", "location", "priority", "status"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Chat message in the multi-turn Gemini assistant",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "modelUsed": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["userId", "role", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles for authenticated campus users"
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Campus maintenance complaint tickets"
+    },
+    "/chat_threads/{userId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Multi-turn Gemini assistant conversation history"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "CampusFix",
+  "description": "Smart Campus Maintenance Complaint Management System",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

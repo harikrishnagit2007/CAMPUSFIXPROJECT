@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan to extend the image upload handler to send images directly to the AI vision service upon selection, displaying real-time diagnostic recommendations (category, severity, department, reason, and confidence) in the complaint submission form with a one-click apply action.",
+  "updatedAt":  "2026-10-05T16:47:39.109421747Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
