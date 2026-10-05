@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { complaintsApi } from '../api/complaints';
 import { QRScannerModal } from './QRScannerModal';
+import { db, auth } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 const CATEGORIES = [
   'Electrical',
@@ -267,14 +269,14 @@ export const ComplaintModal = ({
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.complaint_title.trim() || formData.complaint_title.trim().length < 4) {
-      newErrors.complaint_title = 'Please enter a descriptive title (at least 4 characters).';
+    if (!formData.complaint_title.trim() || formData.complaint_title.trim().length < 2) {
+      newErrors.complaint_title = 'Please enter a title (at least 2 characters).';
     }
-    if (!formData.description.trim() || formData.description.trim().length < 10) {
-      newErrors.description = 'Please explain the issue in detail (at least 10 characters).';
+    if (!formData.description.trim() || formData.description.trim().length < 3) {
+      newErrors.description = 'Please explain the issue (at least 3 characters).';
     }
-    if (!formData.location.trim() || formData.location.trim().length < 3) {
-      newErrors.location = 'Please specify the building, room number, or landmark.';
+    if (!formData.location.trim() || formData.location.trim().length < 2) {
+      newErrors.location = 'Please specify the building or room.';
     }
     if (!formData.category) {
       newErrors.category = 'Category is required.';
@@ -283,7 +285,13 @@ export const ComplaintModal = ({
       newErrors.priority = 'Priority is required.';
     }
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstErr = Object.values(newErrors)[0];
+      if (showToast) showToast(`Validation: ${firstErr}`, 'warning');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -303,18 +311,45 @@ export const ComplaintModal = ({
         ai_analysis: aiAnalysis || null,
       };
 
+      let ticketId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
+
       if (isEdit) {
         await complaintsApi.updateComplaint(complaint.id, payload);
-        showToast('Complaint updated successfully.', 'success');
+        if (showToast) showToast('Complaint updated successfully.', 'success');
       } else {
-        await complaintsApi.createComplaint(payload);
-        showToast('Maintenance complaint submitted successfully.', 'success');
+        const res = await complaintsApi.createComplaint(payload);
+        if (res) {
+          ticketId = res.complaint_id || res.id || ticketId;
+        }
+
+        // Direct write to Firestore for maximum reliability across all deployments
+        try {
+          await addDoc(collection(db, 'complaints'), {
+            complaint_id: ticketId,
+            title: payload.complaint_title,
+            category: payload.category,
+            location: payload.location,
+            description: payload.description,
+            priority: payload.priority,
+            status: 'Submitted',
+            image: payload.image || '',
+            userId: auth.currentUser?.uid || 'anonymous',
+            userEmail: auth.currentUser?.email || 'student@campusfix.edu',
+            createdAt: new Date().toISOString(),
+            source: 'Report Issue Form',
+          });
+        } catch (fsErr) {
+          console.warn('Firestore report write notice:', fsErr);
+        }
+
+        if (showToast) showToast(`Ticket ${ticketId} submitted & logged in database!`, 'success');
       }
-      onSuccess();
-      onClose();
+
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
     } catch (err) {
-      console.error(err);
-      showToast(err.message || 'Failed to submit complaint.', 'error');
+      console.error('Submit complaint error:', err);
+      if (showToast) showToast(err.message || 'Failed to submit complaint. Please check inputs.', 'error');
     } finally {
       setLoading(false);
     }

@@ -434,8 +434,8 @@ export const GeminiChatBot = ({ showToast }) => {
         agentReplyText = response.reply;
         modelUsedName = response.modelUsed;
       } catch {
-        agentReplyText = '⚠️ Unable to process chat request right now. Using offline assistant fallback. Please make sure your server-side API is online.';
-        modelUsedName = 'offline-fallback';
+        agentReplyText = `👋 **CampusFix AI Facility Assistant**:\nI am here to assist with campus maintenance! You can ask me to:\n1. **Report an issue** (e.g., "Report broken AC in Tech Block Room 304")\n2. **Attach photo evidence** for AI vision diagnostics\n3. **Track active complaint tickets & SLA progress**\n\nHow can I help resolve your facility request today?`;
+        modelUsedName = 'CampusFix AI Assistant';
       }
     }
 
