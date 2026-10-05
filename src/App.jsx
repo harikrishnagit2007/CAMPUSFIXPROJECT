@@ -9,7 +9,6 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ComplaintModal } from './components/ComplaintModal';
 import { QRScannerModal } from './components/QRScannerModal';
 import { GeminiChatBot } from './components/GeminiChatBot';
-import { PitchDeckModal } from './components/PitchDeckModal';
 
 function AppContent() {
   const { user, loading, isStudent, isAdmin, isStaff } = useAuth();
@@ -31,7 +30,6 @@ function AppContent() {
   // Global Report Modal trigger for student
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isGlobalQrScannerOpen, setIsGlobalQrScannerOpen] = useState(false);
-  const [isPitchDeckOpen, setIsPitchDeckOpen] = useState(false);
   const [globalPrefilledLocation, setGlobalPrefilledLocation] = useState(null);
 
   const handleSelectQrLocation = (loc) => {
@@ -130,8 +128,6 @@ function AppContent() {
       {/* Global Gemini Chatbot Assistant */}
       {user && <GeminiChatBot showToast={showToast} />}
 
-      {/* Pitch Deck Modal */}
-      <PitchDeckModal isOpen={isPitchDeckOpen} onClose={() => setIsPitchDeckOpen(false)} />
 
       {/* Footer */}
       <footer style={{ background: 'white', borderTop: '1px solid var(--border-subtle)', padding: '20px 0', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>

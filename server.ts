@@ -2546,12 +2546,14 @@ Campus Maintenance Data:
   });
 
   // --- VITE MIDDLEWARE / STATIC ASSETS ---
-  if (process.env.NODE_ENV === 'production') {
+  const productionDistExists = fs.existsSync(path.resolve(__dirname, 'dist', 'index.html'));
+  if (process.env.NODE_ENV === 'production' && productionDistExists) {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {
+    console.log('[CampusFix Server] Mount dynamic Vite rendering middleware');
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true, host: '0.0.0.0' },
