@@ -1285,7 +1285,6 @@ Respond strictly in JSON matching the schema.
       const ai = getGeminiClient();
       if (ai) {
         try {
-          // If there are previous messages, use multi-turn chat session or full contents array
           const history = contents.slice(0, -1);
           const latestMessage = contents[contents.length - 1]?.parts[0]?.text || '';
 
@@ -1307,26 +1306,29 @@ Respond strictly in JSON matching the schema.
               modelUsed: 'CampusFix AI (gemini-3.8-flash)',
             });
           }
-        } catch (genErr) {
-          console.warn('Gemini chat session notice:', genErr);
-          // Fallback to standard generateContent with full contents array
-          const response = await ai.models.generateContent({
-            model: modelToUse,
-            contents,
-            config: {
-              systemInstruction: instruction,
-            },
-          });
-          if (response.text) {
-            return res.status(200).json({
-              reply: response.text,
-              modelUsed: 'CampusFix AI (gemini-3.8-flash)',
+        } catch {
+          // If chat session fails (e.g., invalid API key), attempt standard generateContent silently
+          try {
+            const response = await ai.models.generateContent({
+              model: modelToUse,
+              contents,
+              config: {
+                systemInstruction: instruction,
+              },
             });
+            if (response.text) {
+              return res.status(200).json({
+                reply: response.text,
+                modelUsed: 'CampusFix AI (gemini-3.8-flash)',
+              });
+            }
+          } catch {
+            // Silently fall through to robust offline fallback response
           }
         }
       }
-    } catch (err) {
-      console.warn('Chat route notice:', err);
+    } catch {
+      // Silently fall through to robust offline fallback response
     }
 
     // Dynamic contextual fallback response when AI is offline

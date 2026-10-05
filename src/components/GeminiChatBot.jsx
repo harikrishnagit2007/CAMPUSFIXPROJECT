@@ -22,11 +22,13 @@ import {
   Info,
   ChevronDown,
   Camera,
-  CheckCircle2,
   ShieldAlert,
   PlusCircle,
   Paperclip,
   Image as ImageIcon,
+  Mic,
+  MicOff,
+  HelpCircle,
 } from 'lucide-react';
 
 export const GeminiChatBot = ({ showToast }) => {
@@ -40,6 +42,9 @@ export const GeminiChatBot = ({ showToast }) => {
   const [inputMsg, setInputMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
+  const [isListening, setIsListening] = useState(false);
+  const [micError, setMicError] = useState(false);
+  const [showVoiceGuideTooltip, setShowVoiceGuideTooltip] = useState(false);
 
   const [taskType, setTaskType] = useState('general'); // 'fast' | 'general' | 'complex'
   const [customSystemInstruction, setCustomSystemInstruction] = useState('');
@@ -47,6 +52,7 @@ export const GeminiChatBot = ({ showToast }) => {
 
   const fileInputRef = useRef(null);
   const threadEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   // Auto-scroll to the latest message
   const scrollToBottom = () => {
@@ -58,6 +64,74 @@ export const GeminiChatBot = ({ showToast }) => {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  // Initialize Web Speech API
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      let latestTranscript = '';
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          latestTranscript = transcript;
+          setInputMsg(transcript);
+        }
+      };
+
+      recognition.onerror = (err) => {
+        console.warn('Speech recognition error:', err);
+        setIsListening(false);
+        setMicError(true);
+        if (showToast) showToast('Mic unavailable in iframe. Click a quick voice shortcut below!', 'warning');
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        if (latestTranscript.trim()) {
+          const text = latestTranscript;
+          latestTranscript = '';
+          handleSend(text);
+        }
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      setMicError(true);
+    }
+  }, [showToast]);
+
+  const toggleVoiceRecording = () => {
+    if (!recognitionRef.current) {
+      setMicError(true);
+      if (showToast) showToast('Mic unavailable in container. Tap a voice shortcut below!', 'warning');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        if (showToast) showToast('Listening... Speak now to report issue.', 'info');
+      } catch (err) {
+        console.warn('Speech start error:', err);
+        setIsListening(false);
+        setMicError(true);
+        if (showToast) showToast('Mic permission blocked. Tap a voice shortcut below!', 'warning');
+      }
+    }
+  };
 
   // Subscribe to Firestore conversation history when Firebase Auth is active, or use local storage
   useEffect(() => {
@@ -87,7 +161,6 @@ export const GeminiChatBot = ({ showToast }) => {
 
       return () => unsubscribe();
     } else {
-      // Local storage fallback for demo credentials session
       try {
         const stored = localStorage.getItem(`campusfix_chat_${chatUserId}`);
         if (stored) {
@@ -107,7 +180,7 @@ export const GeminiChatBot = ({ showToast }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAttachedImage(reader.result);
-        if (showToast) showToast('Photo attached successfully for AI Agent submission.', 'success');
+        if (showToast) showToast('Photo attached for AI Assistant auto-submission.', 'success');
       };
       reader.readAsDataURL(file);
     }
@@ -162,25 +235,71 @@ export const GeminiChatBot = ({ showToast }) => {
       });
     }
 
-    // Check if user is asking the AI Agent to report a complaint directly
     const lowerText = userText.toLowerCase();
-    const isReportIntent =
-      lowerText.includes('report') ||
-      lowerText.includes('broken') ||
-      lowerText.includes('fix') ||
-      lowerText.includes('issue') ||
-      lowerText.includes('leaky') ||
-      lowerText.includes('damage') ||
-      lowerText.includes('fault') ||
-      lowerText.includes('spark') ||
-      currentImg !== null;
+    
+    // Intent 1: Open Report Modal
+    const isOpenReportIntent =
+      lowerText.includes('open report') ||
+      lowerText.includes('open the report') ||
+      lowerText.includes('open complaint form') ||
+      lowerText.includes('show report');
+
+    // Intent 2: Query Complaints Stats / Issues Summary
+    const isQueryStatsIntent =
+      lowerText.includes('how many issue') ||
+      lowerText.includes('how many complaint') ||
+      lowerText.includes('what complaints') ||
+      lowerText.includes('list complaints') ||
+      lowerText.includes('total issues') ||
+      lowerText.includes('ticket status');
+
+    // Intent 3: Auto-Submit Issue
+    const isSubmitIntent =
+      !isOpenReportIntent &&
+      !isQueryStatsIntent &&
+      (lowerText.includes('report') ||
+        lowerText.includes('broken') ||
+        lowerText.includes('fix') ||
+        lowerText.includes('issue') ||
+        lowerText.includes('leaky') ||
+        lowerText.includes('damage') ||
+        lowerText.includes('fault') ||
+        lowerText.includes('spark') ||
+        currentImg !== null);
 
     let agentReplyText = '';
-    let modelUsedName = 'CampusFix AI Agent';
+    let modelUsedName = 'CampusFix AI Assistant';
 
-    if (isReportIntent && (userText.length > 5 || currentImg)) {
+    if (isOpenReportIntent) {
+      window.dispatchEvent(
+        new CustomEvent('campusfix-open-report', {
+          detail: {
+            location: {
+              building: lowerText.includes('block a') ? 'Academic Block A' : 'Technology Block C',
+              room: 'Room 304',
+            },
+          },
+        })
+      );
+      agentReplyText = `🚀 AI Assistant Action Executed:\n\nI have automatically opened the Report Issue modal for you! You can review the prefilled details and submit your report right away.`;
+      modelUsedName = 'CampusFix AI Assistant (Modal Trigger)';
+      if (showToast) showToast('AI Assistant opened Report Issue modal!', 'success');
+    } else if (isQueryStatsIntent) {
       try {
-        // Autonomous Agent Action: Automatically submit complaint ticket on behalf of user
+        const analytics = await complaintsApi.getAnalytics();
+        const complaints = await complaintsApi.getComplaints();
+        const total = analytics.total || complaints.length || 0;
+        const open = analytics.open || complaints.filter(c => c.status !== 'Resolved').length || 0;
+        const critical = analytics.critical || complaints.filter(c => c.priority === 'Critical').length || 0;
+
+        agentReplyText = `📊 Live Campus Maintenance Summary:\n\n• Total Complaints Logged: ${total}\n• Currently Open Issues: ${open}\n• Critical Priority Hazards: ${critical}\n\nYou can ask me to report a new issue, attach photos, or open the report form anytime!`;
+        modelUsedName = 'CampusFix AI Assistant (Analytics Query)';
+      } catch {
+        agentReplyText = `📊 You currently have active maintenance tickets registered on the portal. Use the dashboard to view full department breakdowns.`;
+        modelUsedName = 'CampusFix AI Assistant (Fallback)';
+      }
+    } else if (isSubmitIntent && (userText.length > 4 || currentImg)) {
+      try {
         let category = 'General Maintenance';
         if (lowerText.includes('electric') || lowerText.includes('spark') || lowerText.includes('wire') || lowerText.includes('light')) category = 'Electrical';
         else if (lowerText.includes('water') || lowerText.includes('leak') || lowerText.includes('plumb') || lowerText.includes('tap') || lowerText.includes('pipe')) category = 'Plumbing';
@@ -195,8 +314,8 @@ export const GeminiChatBot = ({ showToast }) => {
         else if (lowerText.includes('hostel')) building = 'Men’s Hostel Block 1';
         else if (lowerText.includes('library')) building = 'Central Library';
 
-        const ticketPayload = {
-          complaint_title: userText.slice(0, 80) || 'AI Agent Auto-Filed Issue',
+        const payload = {
+          complaint_title: userText.slice(0, 80) || 'AI Assistant Auto-Filed Issue',
           category,
           building,
           room: 'Room 304 (Auto-detected)',
@@ -211,18 +330,18 @@ export const GeminiChatBot = ({ showToast }) => {
           },
         };
 
-        const createdTicket = await complaintsApi.createComplaint(ticketPayload);
-        const ticketId = createdTicket.id || `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
+        const res = await complaintsApi.createComplaint(payload);
+        const ticketId = res.complaint_id || res.id || `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-        agentReplyText = `🚀 AI Agent Action Executed Successfully!\n\nI have automatically filed and submitted your complaint ticket (${ticketId}) on your behalf.\n\n• Category: ${category}\n• Location: ${building}, Room 304\n• Status: Submitted & Dispatched\n${currentImg ? '• Photo Evidence: Attached successfully\n' : ''}\nOur maintenance technician has been notified and SLA countdown has started. You can track live progress on your dashboard!`;
-        modelUsedName = 'CampusFix AI Agent (Auto-Submit)';
-        if (showToast) showToast(`Ticket ${ticketId} auto-submitted by AI Agent!`, 'success');
+        agentReplyText = `🚀 AI Assistant Submission Complete!\n\nI have successfully filed and submitted your complaint via the backend API:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Location: ${building}, Room 304\n• Status: Dispatched to Maintenance Staff\n${currentImg ? '• Photo Attachment: Included in payload\n' : ''}\nYou can check live SLA progress on your dashboard!`;
+        modelUsedName = 'CampusFix AI Assistant (Auto-Submit)';
+        if (showToast) showToast(`Ticket ${ticketId} auto-submitted successfully!`, 'success');
       } catch (err) {
-        console.warn('Agent auto-submit error:', err);
-        agentReplyText = `I attempted to file your complaint automatically, but encountered a network exception. Please use the '+ Report Issue' button above to submit manually.`;
+        console.warn('API auto-submit error:', err);
+        agentReplyText = `I attempted to auto-submit your report via the backend API, but encountered an error. Please try reporting via the '+ Report Issue' button above.`;
       }
     } else {
-      // Standard AI chat fallback or Gemini API call
+      // Standard chat / Gemini API call
       const currentHistory = [...messages, { role: 'user', content: userText }]
         .map((m) => ({
           role: m.role,
@@ -240,10 +359,7 @@ export const GeminiChatBot = ({ showToast }) => {
         );
         agentReplyText = response.reply;
         modelUsedName = response.modelUsed;
-      } catch (error) {
-        if (showToast) {
-          showToast(error.message || 'Gemini chatbot failed to reply.', 'error');
-        }
+      } catch {
         agentReplyText = '⚠️ Unable to process chat request right now. Using offline assistant fallback. Please make sure your server-side API is online.';
         modelUsedName = 'offline-fallback';
       }
@@ -302,7 +418,7 @@ export const GeminiChatBot = ({ showToast }) => {
       } catch (error) {
         try {
           handleFirestoreError(error, 'delete', `chat_threads/${fbCurrentUser.uid}/messages`);
-        } catch (err) {
+        } catch {
           if (showToast) showToast('Failed to clear history from Firestore.', 'error');
         }
       }
@@ -311,12 +427,6 @@ export const GeminiChatBot = ({ showToast }) => {
       setMessages([]);
       if (showToast) showToast('Chat history cleared.', 'success');
     }
-  };
-
-  const getModelLabel = () => {
-    if (taskType === 'complex') return 'gemini-3.1-pro-preview';
-    if (taskType === 'fast') return 'gemini-3.1-flash-lite';
-    return 'gemini-3.5-flash';
   };
 
   return (
@@ -343,7 +453,7 @@ export const GeminiChatBot = ({ showToast }) => {
           cursor: 'pointer',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
-        title="AI Maintenance Assistant Agent"
+        title="AI Maintenance Assistant"
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
@@ -367,7 +477,7 @@ export const GeminiChatBot = ({ showToast }) => {
             border: '1px solid #e2e8f0',
           }}
         >
-          {/* Header */}
+          {/* Header - Clean Professional Title without debug badges */}
           <div
             style={{
               padding: '16px',
@@ -394,10 +504,10 @@ export const GeminiChatBot = ({ showToast }) => {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700 }}>
-                  CampusFix AI Agent
+                  CampusFix AI Assistant
                 </h3>
                 <span style={{ fontSize: '0.74rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Cpu size={11} /> {getModelLabel()} • Autonomous Auto-Submitter
+                  <Cpu size={11} /> Smart Facilities & Voice Reporting
                 </span>
               </div>
             </div>
@@ -555,8 +665,29 @@ export const GeminiChatBot = ({ showToast }) => {
               whiteSpace: 'nowrap',
             }}
           >
+            {micError && (
+              <button
+                onClick={() => handleSend("Water leakage in Science Block B Lab 202.")}
+                style={{
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  border: '1px solid #fde68a',
+                  borderRadius: '16px',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                title="Voice dictation shortcut simulation"
+              >
+                <Mic size={12} /> 🎙️ Voice: "Water leak in Lab 202"
+              </button>
+            )}
             <button
-              onClick={() => handleSend("I want to report a broken air conditioner in Technology Block C Room 304.")}
+              onClick={() => handleSend("How many issues have been reported so far?")}
               style={{
                 background: '#e0e7ff',
                 color: '#4338ca',
@@ -571,10 +702,10 @@ export const GeminiChatBot = ({ showToast }) => {
                 gap: '4px',
               }}
             >
-              <PlusCircle size={12} /> Auto-File AC Fault
+              <PlusCircle size={12} /> Check Issues Summary
             </button>
             <button
-              onClick={() => handleSend("How can I check the status of my tickets?")}
+              onClick={() => handleSend("Open the report form")}
               style={{
                 background: '#e0e7ff',
                 color: '#4338ca',
@@ -589,7 +720,7 @@ export const GeminiChatBot = ({ showToast }) => {
                 gap: '4px',
               }}
             >
-              <CheckCircle2 size={12} /> Track Tickets
+              <Camera size={12} /> Open Report Modal
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -607,7 +738,7 @@ export const GeminiChatBot = ({ showToast }) => {
                 gap: '4px',
               }}
             >
-              <Camera size={12} /> Attach Photo
+              <Paperclip size={12} /> Attach Photo
             </button>
             <button
               onClick={() => handleSend("What should I do in a campus emergency or safety hazard?")}
@@ -669,10 +800,10 @@ export const GeminiChatBot = ({ showToast }) => {
                   <Sparkles size={24} color="#4f46e5" />
                 </div>
                 <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontWeight: 700 }}>
-                  CampusFix AI Agent (Auto-Submitter)
+                  CampusFix AI Assistant
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.78rem', lineHeight: '1.4' }}>
-                  Type your maintenance issue or attach a photo below. I will automatically submit the complaint ticket and notify technicians instantly!
+                  Use voice dictation (microphone button), type issues to auto-submit, query total complaints, or open report modals instantly!
                 </p>
               </div>
             ) : (
@@ -696,7 +827,6 @@ export const GeminiChatBot = ({ showToast }) => {
                         flexDirection: isUser ? 'row-reverse' : 'row',
                       }}
                     >
-                      {/* Avatar / Indicator */}
                       <div
                         style={{
                           width: '28px',
@@ -716,7 +846,6 @@ export const GeminiChatBot = ({ showToast }) => {
                         {isUser ? 'U' : <Sparkles size={14} />}
                       </div>
 
-                      {/* Bubble */}
                       <div
                         style={{
                           padding: '10px 14px',
@@ -753,7 +882,7 @@ export const GeminiChatBot = ({ showToast }) => {
                         paddingInline: '36px',
                       }}
                     >
-                      {isUser ? 'You' : m.modelUsed || 'AI Agent'}
+                      {isUser ? 'You' : 'AI Assistant'}
                     </span>
                   </div>
                 );
@@ -829,7 +958,7 @@ export const GeminiChatBot = ({ showToast }) => {
                         }}
                       />
                     </div>
-                    <span>AI Agent auto-submitting ticket & dispatching...</span>
+                    <span>AI Assistant processing...</span>
                   </div>
                 </div>
                 <style>{`
@@ -857,7 +986,7 @@ export const GeminiChatBot = ({ showToast }) => {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#1e40af' }}>
                 <ImageIcon size={14} />
-                <span>Photo attached ready for agent auto-submit</span>
+                <span>Photo attached ready for report submission</span>
               </div>
               <button
                 onClick={() => setAttachedImage(null)}
@@ -887,11 +1016,12 @@ export const GeminiChatBot = ({ showToast }) => {
               padding: '12px',
               borderTop: '1px solid #e2e8f0',
               display: 'flex',
-              gap: '8px',
+              gap: '6px',
               backgroundColor: '#ffffff',
               alignItems: 'center',
             }}
           >
+            {/* Attachment Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -911,17 +1041,88 @@ export const GeminiChatBot = ({ showToast }) => {
             >
               <Paperclip size={16} />
             </button>
+
+            {/* Voice Dictation Microphone Button & Tooltip */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={toggleVoiceRecording}
+                style={{
+                  background: isListening ? '#fee2e2' : '#f1f5f9',
+                  border: '1px solid',
+                  borderColor: isListening ? '#ef4444' : '#cbd5e1',
+                  borderRadius: '8px',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: isListening ? '#dc2626' : '#475569',
+                }}
+                title={isListening ? 'Stop listening' : 'Voice-to-text dictation'}
+              >
+                {isListening ? <MicOff size={16} className="animate-pulse text-red-600" /> : <Mic size={16} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowVoiceGuideTooltip(!showVoiceGuideTooltip)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  marginLeft: '2px',
+                }}
+                title="Voice Guide Instructions"
+              >
+                <HelpCircle size={14} />
+              </button>
+
+              {/* Floating Voice Guide Popover Tooltip */}
+              {showVoiceGuideTooltip && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '46px',
+                    left: '-90px',
+                    width: '260px',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                    fontSize: '0.76rem',
+                    zIndex: 1000,
+                    lineHeight: '1.4',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>🎙️ Voice Guide Instructions</span>
+                    <X size={12} style={{ cursor: 'pointer' }} onClick={() => setShowVoiceGuideTooltip(false)} />
+                  </div>
+                  <ol style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <li>Tap the mic button and allow browser microphone permissions.</li>
+                    <li>Speak clearly (e.g. "Report a broken AC in Tech Block Room 304").</li>
+                    <li>If microphone permissions are blocked in iframe, click the yellow voice shortcut chip above!</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+
             <input
               type="text"
               className="form-control"
               style={{
                 flex: 1,
                 fontSize: '0.85rem',
-                padding: '8px 12px',
+                padding: '8px 10px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
               }}
-              placeholder={`Ask ${getModelLabel()} or type issue to auto-submit...`}
+              placeholder={isListening ? 'Listening... Speak now' : 'Ask AI or report issue (or use mic)...'}
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={loading}

@@ -9,7 +9,6 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ComplaintModal } from './components/ComplaintModal';
 import { QRScannerModal } from './components/QRScannerModal';
 import { GeminiChatBot } from './components/GeminiChatBot';
-import { PitchDeckModal } from './components/PitchDeckModal';
 
 function AppContent() {
   const { user, loading, isStudent, isAdmin, isStaff } = useAuth();
@@ -28,10 +27,9 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Global Modals State
+  // Global Report Modal trigger for student
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isGlobalQrScannerOpen, setIsGlobalQrScannerOpen] = useState(false);
-  const [isPitchDeckOpen, setIsPitchDeckOpen] = useState(false);
   const [globalPrefilledLocation, setGlobalPrefilledLocation] = useState(null);
 
   const handleSelectQrLocation = (loc) => {
@@ -39,6 +37,21 @@ function AppContent() {
     setIsReportModalOpen(true);
     showToast(`QR Code decoded: ${loc.building} - ${loc.room}`, 'info');
   };
+
+  React.useEffect(() => {
+    const handleOpenReportEvent = (e) => {
+      if (e.detail && e.detail.location) {
+        setGlobalPrefilledLocation(e.detail.location);
+      } else {
+        setGlobalPrefilledLocation(null);
+      }
+      setIsReportModalOpen(true);
+    };
+    window.addEventListener('campusfix-open-report', handleOpenReportEvent);
+    return () => {
+      window.removeEventListener('campusfix-open-report', handleOpenReportEvent);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -58,7 +71,6 @@ function AppContent() {
           setIsReportModalOpen(true);
         }}
         onOpenQrScanner={() => setIsGlobalQrScannerOpen(true)}
-        onOpenPitchDeck={() => setIsPitchDeckOpen(true)}
       />
 
       <main style={{ flex: 1 }}>
@@ -107,13 +119,6 @@ function AppContent() {
         isOpen={isGlobalQrScannerOpen}
         onClose={() => setIsGlobalQrScannerOpen(false)}
         onSelectLocation={handleSelectQrLocation}
-        showToast={showToast}
-      />
-
-      {/* Global Pitch Deck Presentation Modal */}
-      <PitchDeckModal
-        isOpen={isPitchDeckOpen}
-        onClose={() => setIsPitchDeckOpen(false)}
         showToast={showToast}
       />
 

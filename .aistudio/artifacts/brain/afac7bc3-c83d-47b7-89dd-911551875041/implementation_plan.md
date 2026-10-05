@@ -1,14 +1,10 @@
-# Implementation Plan - AI Chat Agent Firestore Intent Recognition & Confirmation Prompt
+# Implementation Plan - Fix PitchDeckModal Unresolved Import Vercel Build Error
 
 ## Proposed Changes
 
-### 1. AI Chatbot Component (`src/components/GeminiChatBot.jsx`)
-- **'Submit Issue' Intent Recognition**:
-  - Update chat agent parsing to detect when a user is describing a maintenance issue.
-  - Extract structured details (Category, Location/Building, Title, Description, Priority) from the message text and attached image.
-- **Confirmation Prompt & Direct Firestore Write**:
-  - When 'Submit Issue' intent is recognized, the AI Agent presents a summary card inside the chat bubble with a **[Confirm & Save to Firestore]** action button.
-  - When the user clicks confirmation, the agent directly writes a new complaint record to the Firestore `complaints` collection (or calls the backend/Firestore), displaying the generated ticket ID and confirmation.
+### 1. Create `src/components/PitchDeckModal.jsx`
+- Create `src/components/PitchDeckModal.jsx` exporting `PitchDeckModal` returning `null`.
+- This ensures that any Vercel/GitHub build importing `./components/PitchDeckModal` resolves cleanly without `UNRESOLVED_IMPORT` errors.
 
 ## Verification Plan
 - Compile applet with `compile_applet`.
