@@ -28,7 +28,6 @@ import {
   Image as ImageIcon,
   Mic,
   MicOff,
-  HelpCircle,
 } from 'lucide-react';
 
 export const GeminiChatBot = ({ showToast }) => {
@@ -43,9 +42,7 @@ export const GeminiChatBot = ({ showToast }) => {
   const [loading, setLoading] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [micError, setMicError] = useState(false);
   const [voiceLang, setVoiceLang] = useState('ta-IN'); // 'ta-IN' | 'en-US'
-  const [showVoiceGuideTooltip, setShowVoiceGuideTooltip] = useState(false);
 
   const [taskType, setTaskType] = useState('general'); // 'fast' | 'general' | 'complex'
   const [customSystemInstruction, setCustomSystemInstruction] = useState('');
@@ -67,15 +64,16 @@ export const GeminiChatBot = ({ showToast }) => {
   }, [messages, isOpen]);
 
   // Dynamic Web Speech API Dictation (Tamil & English support)
-  const toggleVoiceRecording = async () => {
+  const toggleVoiceRecording = (forcedLang) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setMicError(true);
-      if (showToast) showToast('Speech recognition is not supported in this browser.', 'warning');
+      if (showToast) showToast('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.', 'warning');
       return;
     }
 
-    if (isListening) {
+    const currentLang = forcedLang || voiceLang;
+
+    if (isListening && !forcedLang) {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -84,74 +82,80 @@ export const GeminiChatBot = ({ showToast }) => {
         }
       }
       setIsListening(false);
-      if (showToast) showToast('Voice dictation stopped.', 'info');
-    } else {
-      // 1. Permission check via getUserMedia
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((track) => track.stop());
-        } catch (permErr) {
-          console.warn('Microphone permission warning:', permErr);
-          setMicError(true);
-          if (showToast) showToast('Microphone access denied. Please allow mic in browser settings.', 'warning');
-          return;
+          recognitionRef.current.abort();
+        } catch {
+          /* ignore */
         }
       }
 
-      try {
-        if (recognitionRef.current) {
-          try { recognitionRef.current.abort(); } catch { /* ignore */ }
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = currentLang;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        const langLabel = currentLang === 'ta-IN' ? 'Tamil (தமிழ்)' : 'English';
+        if (showToast) showToast(`🎤 Listening in ${langLabel}... Speak now.`, 'info');
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
         }
+        const fullTranscript = (finalTranscript + ' ' + interimTranscript).trim();
+        if (fullTranscript) {
+          setInputMsg(fullTranscript);
+        }
+      };
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = voiceLang;
-
-        recognition.onstart = () => {
-          setIsListening(true);
-          setMicError(false);
-          const langLabel = voiceLang === 'ta-IN' ? 'Tamil (தமிழ்)' : 'English';
-          if (showToast) showToast(`🎤 Listening in ${langLabel}... Speak now.`, 'info');
-        };
-
-        recognition.onresult = (event) => {
-          let transcript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          if (transcript.trim()) {
-            setInputMsg(transcript);
-          }
-        };
-
-        recognition.onerror = (err) => {
-          console.warn('Speech recognition notice:', err);
-          setIsListening(false);
-          if (err.error === 'language-not-supported' && voiceLang === 'ta-IN') {
-            setVoiceLang('en-US');
-            if (showToast) showToast('Tamil dictation model missing. Auto-switching to English...', 'info');
-          } else if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
-            setMicError(true);
-            if (showToast) showToast('Microphone access denied. Please check browser permissions.', 'warning');
-          } else if (err.error === 'no-speech') {
-            if (showToast) showToast('No speech detected. Please speak into microphone.', 'info');
-          }
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-      } catch (err) {
-        console.warn('Speech activation exception:', err);
+      recognition.onerror = (err) => {
+        console.warn('Speech recognition notice:', err);
         setIsListening(false);
-        setMicError(true);
-        if (showToast) showToast('Could not access microphone. Please check permissions.', 'warning');
-      }
+        if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+          if (showToast) showToast('Microphone access blocked. Please allow mic in your browser address bar.', 'warning');
+        } else if (err.error === 'language-not-supported' && currentLang === 'ta-IN') {
+          setVoiceLang('en-US');
+          if (showToast) showToast('Tamil dictation unavailable on this device. Switched to English.', 'info');
+        } else if (err.error === 'no-speech') {
+          // Silent or brief pause, keep calm
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Speech activation exception:', err);
+      setIsListening(false);
+      if (showToast) showToast('Could not start microphone speech recognition.', 'warning');
+    }
+  };
+
+  const handleToggleVoiceLang = () => {
+    const nextLang = voiceLang === 'ta-IN' ? 'en-US' : 'ta-IN';
+    setVoiceLang(nextLang);
+    const label = nextLang === 'ta-IN' ? 'Tamil (தமிழ்)' : 'English';
+    if (showToast) showToast(`Dictation language set to: ${label}`, 'info');
+
+    // If currently listening, seamlessly restart with the newly selected language
+    if (isListening) {
+      toggleVoiceRecording(nextLang);
     }
   };
 
@@ -739,27 +743,6 @@ export const GeminiChatBot = ({ showToast }) => {
               whiteSpace: 'nowrap',
             }}
           >
-            {micError && (
-              <button
-                onClick={() => handleSend("Water leakage in Science Block B Lab 202.")}
-                style={{
-                  background: '#fef3c7',
-                  color: '#92400e',
-                  border: '1px solid #fde68a',
-                  borderRadius: '16px',
-                  padding: '4px 10px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-                title="Voice dictation shortcut simulation"
-              >
-                <Mic size={12} /> 🎙️ Voice: "Water leak in Lab 202"
-              </button>
-            )}
             <button
               onClick={() => handleSend("How many issues have been reported so far?")}
               style={{
@@ -1116,11 +1099,11 @@ export const GeminiChatBot = ({ showToast }) => {
               <Paperclip size={16} />
             </button>
 
-            {/* Voice Dictation Microphone Button & Tooltip */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Voice Dictation Microphone Button & Language Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"
-                onClick={toggleVoiceRecording}
+                onClick={() => toggleVoiceRecording()}
                 style={{
                   background: isListening ? '#fee2e2' : '#f1f5f9',
                   border: '1px solid',
@@ -1133,28 +1116,25 @@ export const GeminiChatBot = ({ showToast }) => {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   color: isListening ? '#dc2626' : '#475569',
+                  transition: 'all 0.2s ease',
                 }}
-                title={isListening ? 'Stop listening' : 'Voice-to-text dictation'}
+                title={isListening ? 'Stop listening' : 'Click to speak (Voice-to-text)'}
               >
                 {isListening ? <MicOff size={16} className="animate-pulse text-red-600" /> : <Mic size={16} />}
               </button>
 
-              {/* Interactive Language Toggle Switcher */}
+              {/* Multi-Language Toggle Switcher (Tamil / English) */}
               <button
                 type="button"
-                onClick={() => {
-                  const nextLang = voiceLang === 'ta-IN' ? 'en-US' : 'ta-IN';
-                  setVoiceLang(nextLang);
-                  if (showToast) showToast(`Voice dictation language set to: ${nextLang === 'ta-IN' ? 'TA (தமிழ்)' : 'EN (English)'}`, 'info');
-                }}
+                onClick={handleToggleVoiceLang}
                 style={{
                   background: voiceLang === 'ta-IN' ? '#f59e0b' : '#4f46e5',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
-                  padding: '0 6px',
+                  padding: '0 8px',
                   height: '36px',
-                  fontSize: '0.7rem',
+                  fontSize: '0.72rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -1162,55 +1142,12 @@ export const GeminiChatBot = ({ showToast }) => {
                   justifyContent: 'center',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                   whiteSpace: 'nowrap',
+                  transition: 'background-color 0.2s ease',
                 }}
-                title="Click to toggle dictation language (Tamil TA / English EN)"
+                title="Click to toggle voice language (Tamil / English)"
               >
                 {voiceLang === 'ta-IN' ? 'TA தமிழ்' : 'EN English'}
               </button>
-
-              <button
-                type="button"
-                onClick={() => setShowVoiceGuideTooltip(!showVoiceGuideTooltip)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '2px',
-                }}
-                title="Voice Guide Instructions"
-              >
-                <HelpCircle size={14} />
-              </button>
-
-              {/* Floating Voice Guide Popover Tooltip */}
-              {showVoiceGuideTooltip && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '46px',
-                    left: '-90px',
-                    width: '260px',
-                    background: '#1e293b',
-                    color: '#ffffff',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-                    fontSize: '0.76rem',
-                    zIndex: 1000,
-                    lineHeight: '1.4',
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>🎙️ Voice Guide Instructions</span>
-                    <X size={12} style={{ cursor: 'pointer' }} onClick={() => setShowVoiceGuideTooltip(false)} />
-                  </div>
-                  <ol style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <li>Tap the mic button and allow browser microphone permissions.</li>
-                    <li>Speak clearly in Tamil or English to dictate your issue (e.g. "Report broken AC in Tech Block").</li>
-                  </ol>
-                </div>
-              )}
             </div>
 
             <input
@@ -1221,9 +1158,17 @@ export const GeminiChatBot = ({ showToast }) => {
                 fontSize: '0.85rem',
                 padding: '8px 10px',
                 borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                border: isListening ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                backgroundColor: isListening ? '#fff5f5' : '#ffffff',
+                transition: 'all 0.2s ease',
               }}
-              placeholder={isListening ? 'Listening... Speak now' : 'Ask AI or report issue (or use mic)...'}
+              placeholder={
+                isListening
+                  ? voiceLang === 'ta-IN'
+                    ? '🎤 கேட்கிறது... தமிழில் பேசவும்...'
+                    : '🎤 Listening... Speak now in English...'
+                  : 'Ask AI or report issue (or speak)...'
+              }
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={loading}

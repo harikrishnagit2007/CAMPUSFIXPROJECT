@@ -3,7 +3,10 @@
  * Centralized fetch client handling Authorization tokens, headers, and error formatting.
  */
 
-const BASE_URL = '/api';
+// Base API URL supports Java Spring Boot backend via environment variable (e.g. http://localhost:8080/api) or default proxy
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_JAVA_API_BASE_URL)
+  ? import.meta.env.VITE_JAVA_API_BASE_URL
+  : '/api';
 
 export async function apiClient(endpoint, { body, ...customConfig } = {}) {
   const token = localStorage.getItem('campusfix_token');

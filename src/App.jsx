@@ -9,9 +9,13 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ComplaintModal } from './components/ComplaintModal';
 import { QRScannerModal } from './components/QRScannerModal';
 import { GeminiChatBot } from './components/GeminiChatBot';
+import { LostFoundModule } from './components/LostFoundModule';
 
 function AppContent() {
   const { user, loading, isStudent, isAdmin, isStaff } = useAuth();
+
+  // Active Campus Management Module: 'issues' | 'lost-found'
+  const [activeModule, setActiveModule] = useState('issues');
 
   // Toast System
   const [toasts, setToasts] = useState([]);
@@ -66,6 +70,8 @@ function AppContent() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
+        activeModule={activeModule}
+        onChangeModule={setActiveModule}
         onOpenReportModal={() => {
           setGlobalPrefilledLocation(null);
           setIsReportModalOpen(true);
@@ -76,6 +82,8 @@ function AppContent() {
       <main style={{ flex: 1 }}>
         {!user ? (
           <AuthPage showToast={showToast} />
+        ) : activeModule === 'lost-found' ? (
+          <LostFoundModule showToast={showToast} />
         ) : isAdmin ? (
           <AdminDashboard showToast={showToast} />
         ) : isStaff ? (
@@ -133,10 +141,10 @@ function AppContent() {
       <footer style={{ background: 'white', borderTop: '1px solid var(--border-subtle)', padding: '20px 0', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
         <div className="container">
           <p>
-            <strong>CampusFix</strong> • Smart Campus Maintenance & Facility Intelligence Portal
+            <strong>CampusFix</strong> • Integrated Campus Management Portal • Issue Reporting & Lost and Found
           </p>
           <p style={{ marginTop: '4px', fontSize: '0.76rem' }}>
-            Production Full-Stack Architecture • QR Smart Locations • AI Vision Diagnostics • Emergency Escalation
+            Multi-Module Campus Infrastructure • QR Smart Locations • Possible-Match Radar • Java Spring Boot REST Ready
           </p>
         </div>
       </footer>
