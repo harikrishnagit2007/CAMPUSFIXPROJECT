@@ -560,6 +560,43 @@ export const notificationsService = {
   deleteNotification: (id) => apiRequest(`/v1/notifications/${id}`, { method: 'DELETE' }),
 };
 
+// Direct Named Exports for Component Convenience
+export const {
+  fetchActiveComplaints,
+  fetchComplaints,
+  fetchComplaintById,
+  createComplaint,
+  updateComplaint,
+  patchComplaint,
+  deleteComplaint,
+  fetchAnalytics,
+  fetchEmergencyAlerts,
+} = complaintsService;
+
+export const {
+  fetchActiveLostItems,
+  fetchLostFoundItems,
+  fetchLostFoundItemById,
+  createLostFoundItem,
+  updateLostFoundItem,
+  patchLostFoundItem,
+  deleteLostFoundItem,
+  fetchPossibleMatches,
+  submitItemClaim,
+  fetchItemClaims,
+  updateClaimStatus,
+  fetchLostFoundStats,
+} = lostFoundService;
+
+export const {
+  login,
+  register,
+  getCurrentUser,
+  listUsers,
+  updateUser,
+  deleteUser,
+} = usersService;
+
 // ============================================================================
 // Unified API Export
 // ============================================================================

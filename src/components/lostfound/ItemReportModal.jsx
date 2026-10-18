@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, HelpCircle, Gift, MapPin, Calendar, Tag, ShieldCheck, Camera } from 'lucide-react';
+import { X, HelpCircle, Gift, MapPin, Calendar, Tag, ShieldCheck, Camera, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { lostAndFoundApi } from '../../api/lostAndFound';
 
@@ -40,11 +40,42 @@ export const ItemReportModal = ({ isOpen, onClose, initialType = 'LOST', onSucce
     description: '',
     identifyingMarks: '',
     holdingLocation: '',
+    image: null,
     contactPhone: user?.phone || '',
     contactEmail: user?.email || '',
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      if (showToast) showToast('Please select a valid image file (PNG, JPG, WEBP).', 'warning');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (showToast) showToast('Image size should be less than 5MB.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      setImagePreview(dataUrl);
+      setFormData((prev) => ({ ...prev, image: dataUrl }));
+      if (showToast) showToast('Photo attached successfully!', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    setFormData((prev) => ({ ...prev, image: null }));
+  };
 
   // Sync initial type when opened
   React.useEffect(() => {
@@ -78,6 +109,7 @@ export const ItemReportModal = ({ isOpen, onClose, initialType = 'LOST', onSucce
         description: formData.description.trim(),
         identifyingMarks: formData.identifyingMarks.trim(),
         holdingLocation: type === 'FOUND' ? (formData.holdingLocation.trim() || 'Campus Security Main Desk') : '',
+        image: formData.image || '',
         reporterId: user ? String(user.id || user.uid) : 'anonymous',
         reporterName: user?.name || user?.username || 'Campus Student',
         reporterRole: user?.role || 'STUDENT',
@@ -294,6 +326,79 @@ export const ItemReportModal = ({ isOpen, onClose, initialType = 'LOST', onSucce
                 </span>
               </div>
             )}
+
+            {/* Item Photograph Upload */}
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Camera size={16} style={{ color: 'var(--primary-color)' }} />
+                  Item Photograph / Proof Photo (Optional)
+                </span>
+                <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>PNG, JPG up to 5MB</span>
+              </label>
+
+              {imagePreview ? (
+                <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: '#f8fafc', padding: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img
+                    src={imagePreview}
+                    alt="Uploaded item preview"
+                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>Photo Attached</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ready to be stored with report</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 10px', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5' }}
+                    title="Remove attached photo"
+                  >
+                    <Trash2 size={14} style={{ marginRight: '4px' }} />
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <label
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    border: '2px dashed var(--border-subtle)',
+                    borderRadius: '10px',
+                    background: 'rgba(248, 250, 252, 0.7)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      const file = e.dataTransfer.files[0];
+                      const fakeEvent = { target: { files: [file] } };
+                      handleImageChange(fakeEvent);
+                    }
+                  }}
+                >
+                  <Upload size={22} style={{ color: 'var(--text-secondary)', marginBottom: '6px' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                    Click to browse or drag and drop photo
+                  </span>
+                  <span style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Helps other students recognize the item accurately
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageChange}
+                  />
+                </label>
+              )}
+            </div>
 
             {/* Description */}
             <div className="form-group">

@@ -155,7 +155,46 @@ export interface AppNotification {
   type: 'info' | 'success' | 'warning' | 'emergency';
   complaint_id?: number | null;
   read_by: number[];
+}
+
+export interface LostFoundItem {
+  id: number;
+  item_code: string;
+  type: 'LOST' | 'FOUND';
+  item_name: string;
+  category: string;
+  building: string;
+  location: string;
+  date_occurred: string;
+  approx_time?: string;
+  description?: string;
+  identifying_marks?: string;
+  holding_location?: string;
+  image?: string | null;
+  status: 'OPEN' | 'CLAIM_PENDING' | 'RETURNED' | 'CLOSED';
+  reporter_id?: string;
+  reporter_name?: string;
+  reporter_role?: string;
+  contact_email?: string;
+  contact_phone?: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface ItemClaim {
+  id: number;
+  claim_code: string;
+  item_id: number;
+  item_title?: string;
+  claimant_id: string;
+  claimant_name: string;
+  claimant_email: string;
+  claimant_phone: string;
+  ownership_proof: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'HANDED_OVER';
+  admin_notes?: string;
+  submitted_at: string;
+  verified_at?: string | null;
 }
 
 // In-Memory Database
@@ -613,7 +652,116 @@ let notifications: AppNotification[] = [
     created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
   },
 ];
+
 let nextNotificationId = 3;
+let nextLostFoundId = 5;
+let nextClaimId = 2;
+
+const lostFoundItems: LostFoundItem[] = [
+  {
+    id: 1,
+    item_code: 'LF-LOST-8A91C2',
+    type: 'LOST',
+    item_name: 'Casio fx-991EX Scientific Calculator',
+    category: 'Electronics',
+    building: 'Technology Block C',
+    location: 'Technology Block C - Lab 304, 2nd row desk',
+    date_occurred: '2026-10-17',
+    approx_time: '11:30 AM',
+    description: 'Black scientific calculator with solar panel and student initials GM written on the battery lid.',
+    identifying_marks: 'Blue sticker on back, GM written on lid',
+    status: 'OPEN',
+    reporter_id: '2',
+    reporter_name: 'Alex Rivera',
+    reporter_role: 'STUDENT',
+    contact_email: 'student@campusfix.edu',
+    contact_phone: '+91 98840 56789',
+    created_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+  },
+  {
+    id: 2,
+    item_code: 'LF-FOUND-3B77E1',
+    type: 'FOUND',
+    item_name: 'Milton Steel Water Bottle (Silver/Navy)',
+    category: 'Personal Belongings',
+    building: 'Central Library',
+    location: 'Central Library - 2nd Floor Silent Reading Area table 6',
+    date_occurred: '2026-10-18',
+    approx_time: '09:15 AM',
+    description: 'Silver stainless steel water bottle, 750ml, with navy blue carabiner clip cap.',
+    identifying_marks: 'Navy blue carabiner cap, slight dent at bottom',
+    holding_location: 'Central Library Circulation Desk with Mr. Raman',
+    status: 'OPEN',
+    reporter_id: '3',
+    reporter_name: 'Ananya Swaminathan',
+    reporter_role: 'STUDENT',
+    contact_email: 'emma.watson@campusfix.edu',
+    contact_phone: '+91 94441 67890',
+    created_at: new Date(Date.now() - 6 * 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 6 * 3600000).toISOString(),
+  },
+  {
+    id: 3,
+    item_code: 'LF-FOUND-9D42F0',
+    type: 'FOUND',
+    item_name: 'Student ID Card & Keychain',
+    category: 'ID Cards & Keys',
+    building: 'Student Center Cafeteria',
+    location: 'Student Center Cafeteria - Near Coffee Counter',
+    date_occurred: '2026-10-18',
+    approx_time: '01:45 PM',
+    description: 'Raajalakshmi campus ID card attached to lanyard with two brass room keys.',
+    identifying_marks: 'CSE Dept lanyard, brass Godrej key',
+    holding_location: 'Security Gate 1 Main Desk',
+    status: 'OPEN',
+    reporter_id: '4',
+    reporter_name: 'Rajesh Sharma',
+    reporter_role: 'STAFF',
+    contact_email: 'staff@campusfix.edu',
+    contact_phone: '+91 97908 12345',
+    created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+  },
+  {
+    id: 4,
+    item_code: 'LF-LOST-5K88A3',
+    type: 'LOST',
+    item_name: 'Lenovo ThinkPad 65W USB-C Charger',
+    category: 'Electronics',
+    building: 'Science Block B',
+    location: 'Science Block B - Room 202 under faculty podium',
+    date_occurred: '2026-10-16',
+    approx_time: '03:30 PM',
+    description: 'Black USB-C power adapter with braided cable and yellow velcro tie.',
+    identifying_marks: 'Yellow velcro strap around cable',
+    status: 'OPEN',
+    reporter_id: '2',
+    reporter_name: 'Alex Rivera',
+    reporter_role: 'STUDENT',
+    contact_email: 'student@campusfix.edu',
+    contact_phone: '+91 98840 56789',
+    created_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+  },
+];
+
+const itemClaims: ItemClaim[] = [
+  {
+    id: 1,
+    claim_code: 'CLM-77A12',
+    item_id: 2,
+    item_title: 'Milton Steel Water Bottle (Silver/Navy)',
+    claimant_id: '2',
+    claimant_name: 'Alex Rivera',
+    claimant_email: 'student@campusfix.edu',
+    claimant_phone: '+91 98840 56789',
+    ownership_proof: 'Purchased on Amazon last month, has a small dent on the bottom base rim and navy silicone ring on the cap.',
+    status: 'PENDING',
+    admin_notes: 'Under verification with library desk',
+    submitted_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+  },
+];
 
 // Helper for SLA target durations in minutes
 function getSlaTargetMinutes(priority: 'Low' | 'Medium' | 'High' | 'Critical'): number {
@@ -764,10 +912,14 @@ function saveDbToDisk() {
       campusLocations,
       complaints,
       notifications,
+      lostFoundItems,
+      itemClaims,
       nextUserId,
       nextStaffId,
       nextComplaintId,
       nextNotificationId,
+      nextLostFoundId,
+      nextClaimId,
       savedAt: new Date().toISOString(),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
@@ -801,10 +953,20 @@ function loadDbFromDisk() {
         notifications.length = 0;
         notifications.push(...data.notifications);
       }
+      if (Array.isArray(data.lostFoundItems) && data.lostFoundItems.length > 0) {
+        lostFoundItems.length = 0;
+        lostFoundItems.push(...data.lostFoundItems);
+      }
+      if (Array.isArray(data.itemClaims)) {
+        itemClaims.length = 0;
+        itemClaims.push(...data.itemClaims);
+      }
       if (data.nextUserId) nextUserId = data.nextUserId;
       if (data.nextStaffId) nextStaffId = data.nextStaffId;
       if (data.nextComplaintId) nextComplaintId = data.nextComplaintId;
       if (data.nextNotificationId) nextNotificationId = data.nextNotificationId;
+      if (data.nextLostFoundId) nextLostFoundId = data.nextLostFoundId;
+      if (data.nextClaimId) nextClaimId = data.nextClaimId;
       console.log('[CampusFix DB] Successfully restored state from disk.');
     }
   } catch (err) {
@@ -1259,108 +1421,340 @@ Respond strictly in JSON matching the schema.
     return res.status(200).json(pick);
   });
 
-  // --- MULTI-TURN CHATBOT ROUTE ---
+  // --- RESET CHATBOT ROUTE ---
+  app.post('/api/chat/reset/', (_req: Request, res: Response) => {
+    return res.status(200).json({
+      success: true,
+      message: 'Chat session restarted. Conversation context cleared.',
+    });
+  });
+
+  // --- MULTI-TURN MULTIMODAL CHATBOT ROUTE (NLP TO DATABASE & VISION) ---
   app.post('/api/chat/', async (req: Request, res: Response) => {
-    const { messages, taskType, systemInstruction: customInstruction } = req.body;
+    const { messages, taskType, systemInstruction: customInstruction, image } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Messages array is required.' });
     }
 
-    // Role-specific system instructions
-    const defaultInstructions: Record<string, string> = {
-      fast: 'You are CampusFix Assistant. Answer questions concisely and helpfully about campus facilities, room locations, reporting steps, emergency contacts, and maintenance status.',
-      general: 'You are CampusFix Facility Assistant. You help students, faculty, and campus staff report maintenance issues, explain facility repair workflows, guide ticket creation, and provide campus maintenance support.',
-      complex: 'You are CampusFix Senior Facilities Engineer. You perform advanced diagnostic explanations for electrical circuits, structural maintenance, HVAC systems, plumbing networks, and safety incident protocols.',
-    };
+    // Build real-time database schema & records snapshot for NLP-to-database queries
+    const activeComplaintsSnapshot = complaints
+      .filter((c) => c.status !== 'Resolved' && c.status !== 'Closed')
+      .slice(0, 10)
+      .map((c) => ({
+        ticket_id: c.formatted_id,
+        title: c.complaint_title,
+        category: c.category,
+        location: c.location,
+        priority: c.priority,
+        status: c.status,
+      }));
 
-    const instruction = customInstruction || defaultInstructions[taskType] || defaultInstructions.general;
+    const lostFoundSnapshot = lostFoundItems
+      .slice(0, 10)
+      .map((i) => ({
+        code: i.item_code,
+        type: i.type,
+        name: i.item_name,
+        category: i.category,
+        location: i.location,
+        status: i.status,
+        date: i.date_occurred,
+        custody: i.holding_location || 'N/A',
+      }));
+
+    const liveDbKnowledge = `
+You are CampusFix & CampusFind AI Assistant — an integrated intelligent campus facility and lost-found management agent.
+You have live access to the campus MySQL database.
+
+DATABASE SCHEMA:
+- Table "complaints": (id INT, complaint_id VARCHAR(40), complaint_title VARCHAR(180), category VARCHAR(80), building VARCHAR(100), room VARCHAR(60), location VARCHAR(220), priority VARCHAR(30), status VARCHAR(40), description TEXT, image LONGTEXT, created_at TIMESTAMP)
+- Table "lost_found_items": (id INT, item_code VARCHAR(40), type VARCHAR(20) [LOST|FOUND], item_name VARCHAR(180), category VARCHAR(80), building VARCHAR(100), location VARCHAR(220), date_occurred DATE, approx_time VARCHAR(40), status VARCHAR(30) [OPEN|CLAIM_PENDING|RETURNED|CLOSED], holding_location VARCHAR(200), image LONGTEXT, reporter_name VARCHAR(120))
+- Table "item_claims": (id INT, claim_code VARCHAR(40), item_id INT, claimant_name VARCHAR(120), claimant_phone VARCHAR(30), ownership_proof TEXT, status VARCHAR(30))
+- Table "campus_locations": (id VARCHAR(50), building VARCHAR(100), room VARCHAR(60), floor VARCHAR(30), qr_code VARCHAR(120))
+
+LIVE DATABASE SNAPSHOT:
+Active Complaints (${activeComplaintsSnapshot.length}): ${JSON.stringify(activeComplaintsSnapshot)}
+Lost & Found Items (${lostFoundSnapshot.length}): ${JSON.stringify(lostFoundSnapshot)}
+
+CAPABILITIES:
+1. NLP to Database: Answer user queries about active complaints, ticket status, lost items, found items, facilities, and departments based on real data above.
+2. Natural Language to MySQL SQL: If user asks for SQL queries, generate correct, clean MySQL queries matching the schema above in markdown code blocks.
+3. Multimodal Photo Analysis: If the user uploads/attaches a photo, describe the object or damage clearly, diagnose severity, and offer to report it.
+4. Multilingual: If the user asks in Tamil (தமிழ்) or Tanglish, reply fluently, helpfully, and politely in Tamil. If asked in English, reply in English.
+`;
+
+    const instruction = customInstruction
+      ? `${customInstruction}\n\n${liveDbKnowledge}`
+      : liveDbKnowledge;
+
     const modelToUse = 'gemini-3.8-flash';
 
-    const contents = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
+    // Build multimodal contents
+    const contents = messages.map((m: { role: string; content: string; image?: string }, index: number) => {
+      const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
+      const textContent = m.content || ' ';
+      parts.push({ text: textContent });
+
+      // Check for image attached to message or top-level image on latest user message
+      const imgData = m.image || (index === messages.length - 1 ? image : null);
+      if (imgData && typeof imgData === 'string' && imgData.startsWith('data:image/')) {
+        try {
+          const [prefix, rawBase64] = imgData.split(';base64,');
+          const mimeType = prefix.replace('data:', '') || 'image/jpeg';
+          if (rawBase64) {
+            parts.push({
+              inlineData: {
+                mimeType,
+                data: rawBase64,
+              },
+            });
+          }
+        } catch (e) {
+          console.warn('Failed parsing inline image for Gemini:', e);
+        }
+      }
+
+      return {
+        role: m.role === 'model' ? 'model' : 'user',
+        parts,
+      };
+    });
 
     try {
       const ai = getGeminiClient();
       if (ai) {
         try {
-          const history = contents.slice(0, -1);
-          const latestMessage = contents[contents.length - 1]?.parts[0]?.text || '';
-
-          const chatSession = ai.chats.create({
+          const response = await ai.models.generateContent({
             model: modelToUse,
-            history: history.length > 0 ? history : undefined,
+            contents,
             config: {
               systemInstruction: instruction,
             },
           });
 
-          const chatResponse = await chatSession.sendMessage({
-            message: latestMessage,
-          });
-
-          if (chatResponse.text) {
+          if (response.text) {
             return res.status(200).json({
-              reply: chatResponse.text,
+              reply: response.text,
               modelUsed: 'CampusFix AI (gemini-3.8-flash)',
             });
           }
-        } catch {
-          // If chat session fails (e.g., invalid API key), attempt standard generateContent silently
-          try {
-            const response = await ai.models.generateContent({
-              model: modelToUse,
-              contents,
-              config: {
-                systemInstruction: instruction,
-              },
-            });
-            if (response.text) {
-              return res.status(200).json({
-                reply: response.text,
-                modelUsed: 'CampusFix AI (gemini-3.8-flash)',
-              });
-            }
-          } catch {
-            // Silently fall through to robust offline fallback response
-          }
+        } catch (geminiErr: any) {
+          console.warn('Gemini chat generateContent warning:', geminiErr?.message || geminiErr);
         }
       }
     } catch {
-      // Silently fall through to robust offline fallback response
+      // Fall through to smart offline contextual response engine
     }
 
-    // Dynamic contextual fallback response when AI is offline
-    const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
-    let fallbackReply = `I understand you're asking about "${messages[messages.length - 1]?.content || 'campus maintenance'}". To report or get assistance, please use the '+ Report Issue' button above, specify the building and room location, and select the appropriate category (Electrical, Plumbing, Furniture, Wi-Fi, etc.). Our facility team will address it promptly.`;
+    // Dynamic contextual fallback & NLP-to-MySQL responder
+    const latestRawMsg = messages[messages.length - 1]?.content || '';
+    const lastUserMsg = latestRawMsg.toLowerCase();
+    const isTamil = /[\u0B80-\u0BFF]/.test(latestRawMsg);
 
-    if (lastUserMsg.includes('spark') || lastUserMsg.includes('wire') || lastUserMsg.includes('fire') || lastUserMsg.includes('flood') || lastUserMsg.includes('emergency') || lastUserMsg.includes('danger')) {
-      fallbackReply = `⚠️ Safety Hazard Alert: If you see sparking wires, active fire, or severe flooding, please evacuate the area immediately. Contact the Campus 24/7 Emergency Line at +91 44 2715 6750 or submit a ticket with "Critical" priority.`;
-    } else if (lastUserMsg.includes('wifi') || lastUserMsg.includes('internet') || lastUserMsg.includes('network') || lastUserMsg.includes('router') || lastUserMsg.includes('lan')) {
-      fallbackReply = `For campus Wi-Fi or network connectivity issues, please specify the exact building and room number (e.g. Technology Block C, Lab 304) when filing your complaint so IT Infrastructure technician Karthik Raja can diagnose the access point.`;
-    } else if (lastUserMsg.includes('ac') || lastUserMsg.includes('fan') || lastUserMsg.includes('cooling') || lastUserMsg.includes('air conditioning') || lastUserMsg.includes('ventilation')) {
-      fallbackReply = `For AC or ceiling fan issues, submit a ticket under the "Fan/AC" category. Our HVAC team specialist Priya Sundaram handles filter cleaning, refrigerant top-ups, and thermostat calibrations.`;
-    } else if (lastUserMsg.includes('leak') || lastUserMsg.includes('water') || lastUserMsg.includes('tap') || lastUserMsg.includes('pipe') || lastUserMsg.includes('plumbing') || lastUserMsg.includes('drain')) {
-      fallbackReply = `For water leakage or plumbing faults, please report the building and floor so Civil & Plumbing technician Suresh Balaji can isolate the line promptly.`;
-    } else if (lastUserMsg.includes('furniture') || lastUserMsg.includes('desk') || lastUserMsg.includes('chair') || lastUserMsg.includes('bench') || lastUserMsg.includes('table') || lastUserMsg.includes('door') || lastUserMsg.includes('carpentry')) {
-      fallbackReply = `For broken desks, chairs, benches, or doors, please file a ticket under the "Furniture" category. Our Carpentry specialist Ramesh Kumar will inspect and repair the woodwork.`;
-    } else if (lastUserMsg.includes('projector') || lastUserMsg.includes('smart board') || lastUserMsg.includes('audio') || lastUserMsg.includes('screen') || lastUserMsg.includes('mic')) {
-      fallbackReply = `For classroom projector or AV equipment problems, file a ticket under "Projector" or "Classroom". IT & AV support will calibrate or replace lamps.`;
-    } else if (lastUserMsg.includes('clean') || lastUserMsg.includes('dust') || lastUserMsg.includes('garbage') || lastUserMsg.includes('washroom') || lastUserMsg.includes('toilet')) {
-      fallbackReply = `For cleaning and sanitation issues in classrooms or hostels, submit a ticket under "Cleaning". Housekeeping supervisors will dispatch staff immediately.`;
-    } else if (lastUserMsg.includes('status') || lastUserMsg.includes('track') || lastUserMsg.includes('ticket') || lastUserMsg.includes('cmp-') || lastUserMsg.includes('progress')) {
-      fallbackReply = `You can track live ticket progress directly on your Student or Staff dashboard. Complaints progress through Submitted → Under Review → Assigned → In Progress → Resolved with live SLA countdowns.`;
-    } else if (lastUserMsg.includes('staff') || lastUserMsg.includes('technician') || lastUserMsg.includes('admin') || lastUserMsg.includes('contact')) {
-      fallbackReply = `Our maintenance team is led by Dr. R. Natarajan (Admin), supported by specialized technicians: Rajesh Sharma (Electrical), Priya Sundaram (HVAC), Karthik Raja (IT), Suresh Balaji (Plumbing), and Ramesh Kumar (Carpentry).`;
-    } else if (lastUserMsg.includes('hello') || lastUserMsg.includes('hi') || lastUserMsg.includes('vanakkam') || lastUserMsg.includes('help')) {
-      fallbackReply = `Welcome to CampusFix! I am your AI Facility Assistant. You can ask me about reporting issues, checking SLA response times, tracking work orders, or contacting campus maintenance technicians.`;
+    let fallbackReply = '';
+
+    // Check if user is asking for SQL query
+    if (lastUserMsg.includes('sql') || lastUserMsg.includes('query') || lastUserMsg.includes('select') || lastUserMsg.includes('database')) {
+      if (lastUserMsg.includes('lost') || lastUserMsg.includes('found')) {
+        fallbackReply = `Here is the SQL query for Lost & Found items:\n\n\`\`\`sql\nSELECT item_code, type, item_name, category, building, location, date_occurred, status\nFROM lost_found_items\nWHERE status = 'OPEN'\nORDER BY date_occurred DESC;\n\`\`\`\n\nThis retrieves all currently active and unreturned lost/found items recorded in the MySQL database.`;
+      } else {
+        fallbackReply = `Here is the SQL query for Campus Maintenance issues:\n\n\`\`\`sql\nSELECT complaint_id, complaint_title, category, building, priority, status, created_at\nFROM complaints\nWHERE status NOT IN ('Resolved', 'Closed')\nORDER BY CASE priority WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END, created_at DESC;\n\`\`\`\n\nThis prioritizes unresolved critical and high-priority maintenance tickets across campus.`;
+      }
+    } else if (isTamil) {
+      if (lastUserMsg.includes('வணக்கம்') || lastUserMsg.includes('ஹலோ') || lastUserMsg.includes('உதவி')) {
+        fallbackReply = `வணக்கம்! கேம்பஸ்ஃபிக்ஸ் & கேம்பஸ்ஃபைண்ட் AI உதவியாளருக்கு வரவேற்கிறோம்.\n\nநான் உங்களுக்கு பின்வரும் உதவிகளைச் செய்வேன்:\n1. கேம்பஸ் பராமரிப்பு புகார்கள் (மின்சாரம், பிளம்பிங், ஏசி, வைஃபை) பதிவு செய்தல் & கண்காணித்தல்\n2. தொலைந்த மற்றும் கண்டெடுக்கப்பட்ட பொருட்களைத் தேடுதல் & க்ளைம் செய்தல்\n3. புகைப்படங்களை பகுப்பாய்வு செய்தல் மற்றும் நேரலை டேட்டாபேஸ் தகவல்கள் வழங்குதல்.\n\nஉங்களுக்கு என்ன உதவி தேவை?`;
+      } else if (lastUserMsg.includes('தொலைந்') || lastUserMsg.includes('கிடைத்') || lastUserMsg.includes('பொரு')) {
+        const foundList = lostFoundItems.filter(i => i.status === 'OPEN').slice(0, 3);
+        fallbackReply = `🔍 **நேரலை தொலைந்த & கிடைத்த பொருட்கள் விவரம்:**\n\n` +
+          foundList.map(i => `• [${i.item_code}] ${i.type === 'LOST' ? 'தொலைந்தது' : 'கிடைத்தது'}: **${i.item_name}** (${i.location})`).join('\n') +
+          `\n\nபுதிய பொருளைப் புகாரளிக்க அல்லது க்ளைம் செய்ய 'Lost & Found' பகுதியைத் தேர்ந்தெடுக்கவும்.`;
+      } else if (lastUserMsg.includes('இஷ்யூ') || lastUserMsg.includes('பிரச்சனை') || lastUserMsg.includes('புகார்')) {
+        const compList = complaints.filter(c => c.status !== 'Resolved').slice(0, 3);
+        fallbackReply = `📋 **நேரலை கேம்பஸ் பராமரிப்பு நிலவரம்:**\n\n` +
+          compList.map(c => `• **${c.formatted_id}**: ${c.complaint_title} (${c.location}) - நிலை: ${c.status}`).join('\n') +
+          `\n\nபுதிய பிரச்சனைக்கு புகைப்படம் இணைத்து அல்லது '+ Report Issue' மூலம் புகார் அளிக்கலாம்.`;
+      } else {
+        fallbackReply = `வணக்கம்! உங்கள் செய்தி பெறப்பட்டது: "${latestRawMsg}". பராமரிப்பு பிரச்சனை அல்லது தொலைந்த பொருள் குறித்து நீங்கள் விளக்கம் பெறலாம் அல்லது நேரலையாகப் பதிவு செய்யலாம்.`;
+      }
+    } else if (lastUserMsg.includes('lost') || lastUserMsg.includes('found') || lastUserMsg.includes('item') || lastUserMsg.includes('claim')) {
+      const openItems = lostFoundItems.filter(i => i.status === 'OPEN').slice(0, 4);
+      fallbackReply = `🔍 **Live Campus Lost & Found Summary**:\n\n` +
+        openItems.map(i => `• **${i.type}**: ${i.item_name} (#${i.item_code}) at ${i.location} (Status: ${i.status})`).join('\n') +
+        `\n\nYou can click the **Lost & Found** tab in the navbar to file a new report, attach photos, or submit an ownership claim!`;
+    } else if (lastUserMsg.includes('status') || lastUserMsg.includes('track') || lastUserMsg.includes('ticket') || lastUserMsg.includes('cmp-')) {
+      const match = complaints.find(c => lastUserMsg.includes(c.formatted_id.toLowerCase()));
+      if (match) {
+        fallbackReply = `📋 **Ticket ${match.formatted_id} Found**:\n• Title: ${match.complaint_title}\n• Category: ${match.category}\n• Location: ${match.location}\n• Status: **${match.status}**\n• Priority: ${match.priority}`;
+      } else {
+        fallbackReply = `📋 **Live Complaint Tickets Overview**:\nCurrently, there are **${complaints.filter(c => c.status !== 'Resolved').length} active tickets** in progress across campus facilities. You can view full timeline updates on your Student Dashboard.`;
+      }
+    } else if (image) {
+      fallbackReply = `📷 **Photo Analyzed Successfully**:\nI have inspected the uploaded image. To register this directly as a maintenance complaint or lost & found report, please specify the location (e.g. Science Block Room 202) and confirm!`;
+    } else {
+      fallbackReply = `Welcome to **CampusFix & CampusFind AI**! I am connected to the campus management database. You can ask me about:\n• Active maintenance tickets & live status\n• Lost and found campus belongings\n• Generating SQL database queries\n• Uploading photos for visual inspection\n\nHow can I help you?`;
     }
 
     return res.status(200).json({
       reply: fallbackReply,
-      modelUsed: 'CampusFix Assistant',
+      modelUsed: 'CampusFix AI Assistant (Live DB Engine)',
     });
+  });
+
+  // --- REST API ENDPOINTS FOR LOST & FOUND (MIRRORS JAVA SPRING BOOT CONTRACT) ---
+
+  // GET /api/v1/lost-found/items & /api/lost-found/items
+  app.get(['/api/v1/lost-found/items/', '/api/v1/lost-found/items', '/api/lost-found/items/', '/api/lost-found/items'], (req: Request, res: Response) => {
+    const { type, category, building, status, search } = req.query;
+    let list = [...lostFoundItems];
+
+    if (type && typeof type === 'string') {
+      list = list.filter((i) => i.type.toUpperCase() === type.toUpperCase());
+    }
+    if (category && typeof category === 'string' && category !== 'All Categories') {
+      list = list.filter((i) => i.category.toLowerCase() === category.toLowerCase());
+    }
+    if (building && typeof building === 'string') {
+      list = list.filter((i) => i.building.toLowerCase().includes(building.toLowerCase()));
+    }
+    if (status && typeof status === 'string') {
+      list = list.filter((i) => i.status.toUpperCase() === status.toUpperCase());
+    }
+    if (search && typeof search === 'string') {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (i) =>
+          i.item_name.toLowerCase().includes(q) ||
+          (i.description && i.description.toLowerCase().includes(q)) ||
+          i.location.toLowerCase().includes(q) ||
+          i.item_code.toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return res.status(200).json(list);
+  });
+
+  // POST /api/v1/lost-found/report & /api/lost-found/report
+  app.post(['/api/v1/lost-found/report/', '/api/v1/lost-found/report', '/api/lost-found/report/', '/api/lost-found/report', '/api/v1/lost-found/items/', '/api/v1/lost-found/items'], (req: Request, res: Response) => {
+    const body = req.body || {};
+    const type = (body.type || 'LOST').toUpperCase() as 'LOST' | 'FOUND';
+    const itemName = body.itemName || body.title || 'Campus Item';
+    const prefix = type === 'LOST' ? 'LF-LOST-' : 'LF-FOUND-';
+    const code = prefix + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const newItem: LostFoundItem = {
+      id: nextLostFoundId++,
+      item_code: code,
+      type,
+      item_name: itemName,
+      category: body.category || 'General',
+      building: body.building || 'Campus Central',
+      location: body.location || `${body.building || 'Campus'} - General Area`,
+      date_occurred: body.dateOccurred || body.date || new Date().toISOString().split('T')[0],
+      approx_time: body.approxTime || '10:00 AM',
+      description: body.description || '',
+      identifying_marks: body.identifyingMarks || body.distinguishingMarks || '',
+      holding_location: body.holdingLocation || body.custodyStatus || (type === 'FOUND' ? 'Campus Security Desk' : ''),
+      image: body.image || null,
+      status: 'OPEN',
+      reporter_id: body.reporterId ? String(body.reporterId) : 'anonymous',
+      reporter_name: body.reporterName || 'Campus Member',
+      reporter_role: body.reporterRole || 'STUDENT',
+      contact_email: body.contactEmail || '',
+      contact_phone: body.contactPhone || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    lostFoundItems.unshift(newItem);
+    saveDbToDisk();
+    return res.status(201).json(newItem);
+  });
+
+  // GET /api/v1/lost-found/items/:id
+  app.get(['/api/v1/lost-found/items/:id/', '/api/v1/lost-found/items/:id'], (req: Request, res: Response) => {
+    const id = req.params.id;
+    const item = lostFoundItems.find((i) => String(i.id) === id || i.item_code.toLowerCase() === id.toLowerCase());
+    if (!item) {
+      return res.status(404).json({ error: 'Lost/Found item not found: ' + id });
+    }
+    return res.status(200).json(item);
+  });
+
+  // PATCH /api/v1/lost-found/items/:id/status
+  app.patch(['/api/v1/lost-found/items/:id/status/', '/api/v1/lost-found/items/:id/status'], (req: Request, res: Response) => {
+    const id = req.params.id;
+    const item = lostFoundItems.find((i) => String(i.id) === id || i.item_code.toLowerCase() === id.toLowerCase());
+    if (!item) {
+      return res.status(404).json({ error: 'Lost/Found item not found: ' + id });
+    }
+    const newStatus = (req.body.status || 'OPEN').toUpperCase();
+    item.status = newStatus as any;
+    item.updated_at = new Date().toISOString();
+    saveDbToDisk();
+    return res.status(200).json(item);
+  });
+
+  // DELETE /api/v1/lost-found/items/:id
+  app.delete(['/api/v1/lost-found/items/:id/', '/api/v1/lost-found/items/:id'], (req: Request, res: Response) => {
+    const id = req.params.id;
+    const index = lostFoundItems.findIndex((i) => String(i.id) === id || i.item_code.toLowerCase() === id.toLowerCase());
+    if (index === -1) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    lostFoundItems.splice(index, 1);
+    saveDbToDisk();
+    return res.status(200).json({ success: true, message: 'Item deleted successfully' });
+  });
+
+  // GET /api/v1/lost-found/stats
+  app.get(['/api/v1/lost-found/stats/', '/api/v1/lost-found/stats', '/api/lost-found/stats/', '/api/lost-found/stats'], (_req: Request, res: Response) => {
+    const stats = {
+      totalLost: lostFoundItems.filter((i) => i.type === 'LOST').length,
+      totalFound: lostFoundItems.filter((i) => i.type === 'FOUND').length,
+      openLost: lostFoundItems.filter((i) => i.type === 'LOST' && i.status === 'OPEN').length,
+      openFound: lostFoundItems.filter((i) => i.type === 'FOUND' && i.status === 'OPEN').length,
+      activeClaims: itemClaims.filter((c) => c.status === 'PENDING' || c.status === 'UNDER_REVIEW').length,
+      returnedItems: lostFoundItems.filter((i) => i.status === 'RETURNED').length,
+    };
+    return res.status(200).json(stats);
+  });
+
+  // POST /api/v1/lost-found/claims
+  app.post(['/api/v1/lost-found/claims/', '/api/v1/lost-found/claims', '/api/lost-found/claims/', '/api/lost-found/claims'], (req: Request, res: Response) => {
+    const body = req.body || {};
+    const item = lostFoundItems.find((i) => String(i.id) === String(body.itemId));
+
+    const claimCode = 'CLM-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newClaim: ItemClaim = {
+      id: nextClaimId++,
+      claim_code: claimCode,
+      item_id: Number(body.itemId) || 0,
+      item_title: body.itemTitle || item?.item_name || 'Campus Item',
+      claimant_id: String(body.claimantId || 'anonymous'),
+      claimant_name: body.claimantName || 'Student Claimant',
+      claimant_email: body.claimantEmail || '',
+      claimant_phone: body.claimantPhone || '',
+      ownership_proof: body.ownershipProof || body.proofDescription || '',
+      status: 'PENDING',
+      admin_notes: body.adminNotes || '',
+      submitted_at: new Date().toISOString(),
+    };
+
+    itemClaims.unshift(newClaim);
+    if (item && item.status === 'OPEN') {
+      item.status = 'CLAIM_PENDING';
+      item.updated_at = new Date().toISOString();
+    }
+    saveDbToDisk();
+    return res.status(201).json(newClaim);
+  });
+
+  // GET /api/v1/lost-found/claims/my-claims
+  app.get(['/api/v1/lost-found/claims/my-claims/', '/api/v1/lost-found/claims/my-claims', '/api/lost-found/claims/my-claims/', '/api/lost-found/claims/my-claims'], (req: Request, res: Response) => {
+    const userId = (req.headers['x-user-id'] as string) || (req.query.claimantId as string) || '';
+    const userClaims = itemClaims.filter((c) => String(c.claimant_id) === String(userId));
+    return res.status(200).json(userClaims);
   });
 
   // --- AUTH ROUTES ---

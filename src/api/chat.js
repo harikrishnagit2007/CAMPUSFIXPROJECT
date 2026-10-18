@@ -25,12 +25,13 @@ function generateDynamicAssistantReply(messages) {
 
 export const chatApi = {
   /**
-   * Send a list of multi-turn messages to Gemini and get a reply.
-   * @param {Array<{role: string, content: string}>} messages
+   * Send a list of multi-turn messages and optional image to Gemini / Backend.
+   * @param {Array<{role: string, content: string, image?: string}>} messages
    * @param {string} taskType - 'fast' | 'general' | 'complex'
    * @param {string} [systemInstruction] - Optional custom instructions
+   * @param {string|null} [image] - Optional base64 data URL
    */
-  sendMessage: async (messages, taskType = 'general', systemInstruction = '') => {
+  sendMessage: async (messages, taskType = 'general', systemInstruction = '', image = null) => {
     try {
       const res = await apiClient('/chat/', {
         method: 'POST',
@@ -38,6 +39,7 @@ export const chatApi = {
           messages,
           taskType,
           systemInstruction,
+          image,
         },
       });
       if (res && res.reply) return res;
