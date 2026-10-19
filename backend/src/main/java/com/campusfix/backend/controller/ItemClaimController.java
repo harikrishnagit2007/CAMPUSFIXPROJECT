@@ -36,6 +36,17 @@ public class ItemClaimController {
     }
 
     /**
+     * GET /api/v1/lost-found/claims
+     * Retrieve all claims (with optional status filter)
+     */
+    @GetMapping
+    public ResponseEntity<List<ItemClaimResponse>> getAllClaims(
+            @RequestParam(required = false) com.campusfix.backend.entity.enums.ClaimStatus status
+    ) {
+        return ResponseEntity.ok(lostFoundService.getAllClaims(status));
+    }
+
+    /**
      * GET /api/v1/lost-found/claims/my-claims
      * Retrieve all claims submitted by the current user
      */
@@ -58,10 +69,10 @@ public class ItemClaimController {
     }
 
     /**
-     * PATCH /api/v1/lost-found/claims/{claimCode}/status
+     * PATCH /api/v1/lost-found/claims/{claimCode} and /status
      * Admin/Staff review of an ownership claim
      */
-    @PatchMapping("/{claimCode}/status")
+    @PatchMapping(path = {"/{claimCode}", "/{claimCode}/status"})
     public ResponseEntity<ItemClaimResponse> updateClaimStatus(
             @PathVariable String claimCode,
             @RequestBody StatusUpdateRequest request

@@ -73,10 +73,10 @@ public class LostFoundController {
     }
 
     /**
-     * PATCH /api/v1/lost-found/items/{identifier}/status
+     * PATCH /api/v1/lost-found/items/{identifier} and /status
      * Update status (e.g. RETURNED, CLOSED)
      */
-    @PatchMapping("/items/{identifier}/status")
+    @PatchMapping(path = {"/items/{identifier}", "/items/{identifier}/status"})
     public ResponseEntity<LostFoundItemResponse> patchItemStatus(
             @PathVariable String identifier,
             @RequestBody StatusUpdateRequest request

@@ -153,6 +153,67 @@ public class ComplaintServiceImpl implements ComplaintService {
         return stats;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComplaintResponse> getEmergencyAlerts() {
+        return complaintRepository.findActiveComplaints().stream()
+                .filter(c -> "Critical".equalsIgnoreCase(c.getPriority()) || "High".equalsIgnoreCase(c.getPriority()))
+                .map(ComplaintResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ComplaintResponse> checkDuplicates(String title, String category, String location) {
+        if (title == null || title.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String tLower = title.toLowerCase();
+        return complaintRepository.findActiveComplaints().stream()
+                .filter(c -> {
+                    boolean sameCategory = category != null && c.getCategory().equalsIgnoreCase(category);
+                    boolean sameLocation = location != null && c.getLocation().toLowerCase().contains(location.toLowerCase());
+                    boolean similarTitle = c.getComplaintTitle().toLowerCase().contains(tLower) || tLower.contains(c.getComplaintTitle().toLowerCase());
+                    return (sameCategory && sameLocation) || (sameCategory && similarTitle) || (sameLocation && similarTitle);
+                })
+                .map(ComplaintResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, String> suggestPriority(String title, String description, String category) {
+        String text = (title + " " + (description != null ? description : "") + " " + (category != null ? category : "")).toLowerCase();
+        String priority = "Medium";
+        String reason = "Standard campus maintenance request";
+
+        if (text.contains("spark") || text.contains("fire") || text.contains("emergency") || text.contains("danger") ||
+            text.contains("shock") || text.contains("flood") || text.contains("burst") || text.contains("hazard") || text.contains("smoke")) {
+            priority = "Critical";
+            reason = "Safety hazard or acute infrastructure emergency detected in complaint details.";
+        } else if (text.contains("leak") || text.contains("broken") || text.contains("power cut") || text.contains("blackout") ||
+                   text.contains("not working") || text.contains("ac") || text.contains("water") || text.contains("urgent")) {
+            priority = "High";
+            reason = "Direct impediment to student learning or critical amenity failure.";
+        } else if (text.contains("loose") || text.contains("wobbly") || text.contains("flicker") || text.contains("slow") || text.contains("paint")) {
+            priority = "Low";
+            reason = "Cosmetic or minor operational degradation; non-urgent scheduling.";
+        }
+
+        return Map.of("suggestedPriority", priority, "reason", reason);
+    }
+
+    @Override
+    public ComplaintResponse assignStaff(String identifier, String staffId) {
+        Complaint complaint = findEntity(identifier);
+        complaint.setAssignedStaffId(staffId);
+        if ("Submitted".equalsIgnoreCase(complaint.getStatus()) || "Under Review".equalsIgnoreCase(complaint.getStatus())) {
+            complaint.setStatus("Assigned");
+        }
+        complaint.setUpdatedAt(LocalDateTime.now());
+        Complaint updated = complaintRepository.save(complaint);
+        return ComplaintResponse.fromEntity(updated);
+    }
+
     private Complaint findEntity(String identifier) {
         if (identifier == null || identifier.trim().isEmpty()) {
             throw new NoSuchElementException("Complaint identifier cannot be empty");

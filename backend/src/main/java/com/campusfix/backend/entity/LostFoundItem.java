@@ -5,6 +5,8 @@ import com.campusfix.backend.entity.enums.ItemType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ public class LostFoundItem {
 
     @NotNull(message = "Item type (LOST or FOUND) is required")
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "type", nullable = false, length = 20)
     private ItemType type;
 
@@ -66,6 +69,7 @@ public class LostFoundItem {
     private String image;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "status", nullable = false, length = 30)
     private ItemStatus status = ItemStatus.OPEN;
 

@@ -254,12 +254,20 @@ public class LostFoundServiceImpl implements LostFoundService {
         return claimRepository.findByItemId(item.getId()).stream()
                 .map(ItemClaimResponse::fromEntity)
                 .collect(Collectors.toList());
+    @Override
+    @Transactional(readOnly = true)
+    public List<ItemClaimResponse> getAllClaims(ClaimStatus status) {
+        List<ItemClaim> list = (status != null)
+                ? claimRepository.findByStatusOrderBySubmittedAtDesc(status)
+                : claimRepository.findAll();
+        return list.stream()
+                .map(ItemClaimResponse::fromEntity)
+                .collect(Collectors.toList());
     }
 
     @Override
     public ItemClaimResponse updateClaimStatus(String claimCode, StatusUpdateRequest request) {
-        ItemClaim claim = claimRepository.findByClaimCode(claimCode)
-                .orElseThrow(() -> new NoSuchElementException("Claim not found with code: " + claimCode));
+        ItemClaim claim = findClaimEntity(claimCode);
 
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             ClaimStatus newStatus = ClaimStatus.valueOf(request.getStatus().trim().toUpperCase());
@@ -323,6 +331,20 @@ public class LostFoundServiceImpl implements LostFoundService {
 
         return itemRepository.findByItemCode(identifier.trim())
                 .orElseThrow(() -> new NoSuchElementException("Lost/Found item not found: " + identifier));
+    }
+
+    private ItemClaim findClaimEntity(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new NoSuchElementException("Claim identifier cannot be empty");
+        }
+        try {
+            Long id = Long.parseLong(identifier.trim());
+            Optional<ItemClaim> byId = claimRepository.findById(id);
+            if (byId.isPresent()) return byId.get();
+        } catch (NumberFormatException ignored) {}
+
+        return claimRepository.findByClaimCode(identifier.trim())
+                .orElseThrow(() -> new NoSuchElementException("Item claim not found with code/ID: " + identifier));
     }
 
     private Set<String> extractKeywords(String text) {

@@ -24,4 +24,12 @@ public interface ComplaintService {
     void deleteComplaint(String identifier);
 
     Map<String, Object> getComplaintStats();
+
+    List<ComplaintResponse> getEmergencyAlerts();
+
+    List<ComplaintResponse> checkDuplicates(String title, String category, String location);
+
+    Map<String, String> suggestPriority(String title, String description, String category);
+
+    ComplaintResponse assignStaff(String identifier, String staffId);
 }

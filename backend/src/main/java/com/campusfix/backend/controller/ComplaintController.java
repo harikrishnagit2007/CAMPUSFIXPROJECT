@@ -107,11 +107,20 @@ public class ComplaintController {
     }
 
     /**
-     * GET /api/v1/complaints/stats
+     * GET /api/v1/complaints/stats and /api/v1/complaints/analytics
      * Aggregated statistics for dashboards
      */
-    @GetMapping("/stats")
+    @GetMapping(path = {"/stats", "/analytics"})
     public ResponseEntity<Map<String, Object>> getComplaintStats() {
         return ResponseEntity.ok(complaintService.getComplaintStats());
+    }
+
+    /**
+     * GET /api/v1/complaints/emergency-alerts
+     * Critical/Emergency safety hazard alerts
+     */
+    @GetMapping("/emergency-alerts")
+    public ResponseEntity<List<ComplaintResponse>> getEmergencyAlerts() {
+        return ResponseEntity.ok(complaintService.getEmergencyAlerts());
     }
 }

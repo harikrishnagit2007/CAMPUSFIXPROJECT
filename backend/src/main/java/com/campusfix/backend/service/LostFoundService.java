@@ -30,6 +30,8 @@ public interface LostFoundService {
 
     List<ItemClaimResponse> getItemClaims(String itemIdentifier);
 
+    List<ItemClaimResponse> getAllClaims(ClaimStatus status);
+
     ItemClaimResponse updateClaimStatus(String claimCode, StatusUpdateRequest request);
 
     DashboardStatsResponse getDashboardStats(String userId);

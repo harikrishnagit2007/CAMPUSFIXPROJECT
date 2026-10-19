@@ -52,7 +52,9 @@ public interface LostFoundItemRepository extends JpaRepository<LostFoundItem, Lo
      * Find candidate items of opposite type for matching
      * e.g. For a LOST item, search FOUND items that match category or building or keywords
      */
-    @Query("SELECT i FROM LostFoundItem i WHERE i.type = :targetType AND i.status != 'RETURNED' AND i.status != 'CLOSED' AND " +
+    @Query("SELECT i FROM LostFoundItem i WHERE i.type = :targetType AND " +
+           "i.status != com.campusfix.backend.entity.enums.ItemStatus.RETURNED AND " +
+           "i.status != com.campusfix.backend.entity.enums.ItemStatus.CLOSED AND " +
            "(:category IS NULL OR LOWER(i.category) = LOWER(:category) OR " +
            " :building IS NULL OR LOWER(i.building) = LOWER(:building)) " +
            "ORDER BY i.createdAt DESC")
