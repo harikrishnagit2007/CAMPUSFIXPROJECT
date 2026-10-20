@@ -207,11 +207,18 @@ export const ComplaintModal = ({
           if (result) {
             setAiAnalysis(result);
             if (showToast) {
-              showToast(`AI Vision: Suggested ${result.category} (${result.severity} Priority)`, 'info');
+              if (result.isMaintenanceIssue === false) {
+                showToast(`AI Vision: Unrelated image detected (${result.detectedIssue})`, 'warning');
+              } else {
+                showToast(`AI Vision: Suggested ${result.category} (${result.severity} Priority)`, 'info');
+              }
             }
           }
         } catch (err) {
           console.error(err);
+          if (showToast) {
+            showToast(err?.message || 'AI Vision analysis service busy. Please proceed manually.', 'warning');
+          }
         } finally {
           setIsAnalyzingImage(false);
         }
@@ -232,11 +239,17 @@ export const ComplaintModal = ({
       const result = await complaintsApi.analyzeImage(payload);
       if (result) {
         setAiAnalysis(result);
-        if (showToast) showToast('AI Image Analysis completed successfully!', 'success');
+        if (showToast) {
+          if (result.isMaintenanceIssue === false) {
+            showToast(`AI Vision: Detected non-maintenance photo (${result.detectedIssue})`, 'warning');
+          } else {
+            showToast(`AI Vision: Suggested ${result.category} (${result.severity} Priority)`, 'success');
+          }
+        }
       }
     } catch (err) {
       console.error(err);
-      if (showToast) showToast('AI vision inspection service currently busy.', 'error');
+      if (showToast) showToast(err?.message || 'AI vision inspection service currently busy.', 'error');
     } finally {
       setIsAnalyzingImage(false);
     }
@@ -245,13 +258,27 @@ export const ComplaintModal = ({
   // Apply AI suggestions to form
   const handleApplyAiSuggestions = () => {
     if (!aiAnalysis) return;
+    if (aiAnalysis.isMaintenanceIssue === false) {
+      setFormData((prev) => ({
+        ...prev,
+        category: 'Other',
+        priority: 'Low',
+        description: prev.description
+          ? `${prev.description}\n[AI Note: Photo identified as ${aiAnalysis.detectedIssue} - ${aiAnalysis.reason}]`
+          : `[AI Note: Photo identified as ${aiAnalysis.detectedIssue} - ${aiAnalysis.reason}]`,
+      }));
+      setAppliedAi(true);
+      if (showToast) showToast('AI categorization set to Other (Low Priority)', 'info');
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       category: aiAnalysis.category || prev.category,
       priority: aiAnalysis.severity || prev.priority,
       description: prev.description
-        ? `${prev.description}\n[AI Vision Note: ${aiAnalysis.reason}]`
-        : aiAnalysis.reason,
+        ? `${prev.description}\n[AI Vision: ${aiAnalysis.detectedIssue} - ${aiAnalysis.reason}]`
+        : `${aiAnalysis.detectedIssue ? aiAnalysis.detectedIssue + ' - ' : ''}${aiAnalysis.reason}`,
     }));
     setAppliedAi(true);
     if (showToast) showToast('AI suggested category and severity applied!', 'info');
@@ -777,29 +804,47 @@ export const ComplaintModal = ({
                 </div>
               )}
 
-              {/* AI Suggested Classification (User Spec) */}
+              {/* AI Analysis Result Card */}
               {aiAnalysis && (
                 <div
                   style={{
                     marginTop: '14px',
-                    background: '#ffffff',
+                    background: aiAnalysis.isMaintenanceIssue === false ? '#fffbeb' : '#ffffff',
                     borderRadius: '10px',
-                    border: '1px solid #c7d2fe',
+                    border: `1px solid ${aiAnalysis.isMaintenanceIssue === false ? '#fde68a' : '#c7d2fe'}`,
                     padding: '14px 16px',
-                    boxShadow: '0 2px 10px rgba(99, 102, 241, 0.08)',
+                    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem', fontWeight: 700, color: 'var(--primary-700)' }}>
-                      <Sparkles size={16} />
-                      AI Suggested Classification
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.86rem',
+                        fontWeight: 700,
+                        color: aiAnalysis.isMaintenanceIssue === false ? '#b45309' : 'var(--primary-700)',
+                      }}
+                    >
+                      {aiAnalysis.isMaintenanceIssue === false ? (
+                        <>
+                          <AlertTriangle size={16} color="#d97706" />
+                          <span>Not a Campus Maintenance Issue</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          <span>AI Suggested Classification</span>
+                        </>
+                      )}
                     </div>
                     <span
                       style={{
                         fontSize: '0.72rem',
                         fontWeight: 700,
-                        color: '#047857',
-                        background: '#d1fae5',
+                        color: aiAnalysis.isMaintenanceIssue === false ? '#92400e' : '#047857',
+                        background: aiAnalysis.isMaintenanceIssue === false ? '#fef3c7' : '#d1fae5',
                         padding: '2px 8px',
                         borderRadius: '9999px',
                       }}
@@ -808,39 +853,84 @@ export const ComplaintModal = ({
                     </span>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                      gap: '8px',
-                      fontSize: '0.8rem',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Suggested Category</span>
-                      <strong style={{ color: '#1e293b' }}>{aiAnalysis.category}</strong>
-                    </div>
-                    <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Severity / Priority</span>
-                      <strong style={{ color: aiAnalysis.severity === 'Critical' ? '#dc2626' : aiAnalysis.severity === 'High' ? '#ea580c' : '#4338ca' }}>
-                        {aiAnalysis.severity}
-                      </strong>
-                    </div>
-                    <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Recommended Dept</span>
-                      <strong style={{ color: '#1e293b' }}>{aiAnalysis.department}</strong>
-                    </div>
-                  </div>
+                  {aiAnalysis.isMaintenanceIssue === false ? (
+                    <div style={{ marginBottom: '10px' }}>
+                      <div
+                        style={{
+                          background: '#ffffff',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #fef08a',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#b45309', textTransform: 'uppercase', marginBottom: '2px' }}>
+                          Detected Object / Content:
+                        </div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1e293b' }}>
+                          {aiAnalysis.detectedIssue || 'Non-maintenance subject'}
+                        </div>
+                        {aiAnalysis.description && (
+                          <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '4px' }}>
+                            {aiAnalysis.description}
+                          </div>
+                        )}
+                      </div>
 
-                  <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.45, marginBottom: '12px', background: '#f1f5f9', padding: '8px 12px', borderRadius: '6px' }}>
-                    <span style={{ fontWeight: 600, color: '#475569' }}>Diagnostic Reason: </span>
-                    {aiAnalysis.reason}
-                  </div>
+                      <div style={{ fontSize: '0.8rem', color: '#78350f', background: '#fef3c7', padding: '8px 12px', borderRadius: '6px', lineHeight: 1.45 }}>
+                        <strong>Diagnostic Reason:</strong> {aiAnalysis.reason}
+                      </div>
+
+                      <div style={{ fontSize: '0.74rem', color: '#92400e', marginTop: '8px', fontStyle: 'italic' }}>
+                        Note: This image will be classified under category <strong>Other</strong> with <strong>Low</strong> priority.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {aiAnalysis.detectedIssue && (
+                        <div style={{ marginBottom: '8px', fontSize: '0.84rem', color: '#1e293b' }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Identified Defect: </span>
+                          <strong>{aiAnalysis.detectedIssue}</strong>
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Suggested Category</span>
+                          <strong style={{ color: '#1e293b' }}>{aiAnalysis.category}</strong>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Severity / Priority</span>
+                          <strong style={{ color: aiAnalysis.severity === 'Critical' ? '#dc2626' : aiAnalysis.severity === 'High' ? '#ea580c' : '#4338ca' }}>
+                            {aiAnalysis.severity}
+                          </strong>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Recommended Dept</span>
+                          <strong style={{ color: '#1e293b' }}>{aiAnalysis.department}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.45, marginBottom: '12px', background: '#f1f5f9', padding: '8px 12px', borderRadius: '6px' }}>
+                        <span style={{ fontWeight: 600, color: '#475569' }}>Diagnostic Reason: </span>
+                        {aiAnalysis.reason}
+                      </div>
+                    </>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                      Click to apply recommendations to form fields:
+                      {aiAnalysis.isMaintenanceIssue === false
+                        ? 'Apply category "Other" and Low priority:'
+                        : 'Click to apply recommendations to form fields:'}
                     </span>
                     <button
                       type="button"
@@ -849,7 +939,11 @@ export const ComplaintModal = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        background: appliedAi ? '#15803d' : 'var(--primary-600)',
+                        background: appliedAi
+                          ? '#15803d'
+                          : aiAnalysis.isMaintenanceIssue === false
+                          ? '#d97706'
+                          : 'var(--primary-600)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
@@ -858,11 +952,15 @@ export const ComplaintModal = ({
                         fontWeight: 700,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        boxShadow: '0 2px 6px rgba(99, 102, 241, 0.25)',
+                        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
                       }}
                     >
                       {appliedAi ? <Check size={14} /> : <Sparkles size={14} />}
-                      {appliedAi ? 'Suggestions Applied' : 'Apply AI Suggestions'}
+                      {appliedAi
+                        ? 'Applied'
+                        : aiAnalysis.isMaintenanceIssue === false
+                        ? 'Apply "Other" (Low Priority)'
+                        : 'Apply AI Suggestions'}
                     </button>
                   </div>
                 </div>

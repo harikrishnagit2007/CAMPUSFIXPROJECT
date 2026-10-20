@@ -45,7 +45,7 @@ public class ComplaintController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Complaints successfully retrieved")
     })
-    @GetMapping
+    @GetMapping({"", "/"})
     public ResponseEntity<List<ComplaintResponse>> getAllComplaints(
             @Parameter(description = "Filter by status (e.g. Submitted, In Progress, Resolved)")
             @RequestParam(required = false) String status,
@@ -65,7 +65,7 @@ public class ComplaintController {
      * Retrieve only active / unresolved complaints
      */
     @Operation(summary = "Get active complaints", description = "Retrieve all open complaints that have not been resolved or closed.")
-    @GetMapping("/active")
+    @GetMapping({"/active", "/active/"})
     public ResponseEntity<List<ComplaintResponse>> getActiveComplaints() {
         return ResponseEntity.ok(complaintService.getActiveComplaints());
     }
@@ -79,7 +79,7 @@ public class ComplaintController {
         @ApiResponse(responseCode = "200", description = "Complaint found and returned"),
         @ApiResponse(responseCode = "404", description = "Complaint ticket not found")
     })
-    @GetMapping("/{identifier}")
+    @GetMapping({"/{identifier}", "/{identifier}/"})
     public ResponseEntity<ComplaintResponse> getComplaint(
             @Parameter(description = "Complaint numeric database ID or code (e.g., CMP-7A2B9C)")
             @PathVariable String identifier
@@ -96,7 +96,7 @@ public class ComplaintController {
         @ApiResponse(responseCode = "201", description = "Complaint successfully created"),
         @ApiResponse(responseCode = "400", description = "Invalid request payload or missing required fields")
     })
-    @PostMapping
+    @PostMapping({"", "/"})
     public ResponseEntity<ComplaintResponse> createComplaint(@Valid @RequestBody ComplaintRequest request) {
         ComplaintResponse created = complaintService.createComplaint(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -111,7 +111,7 @@ public class ComplaintController {
         @ApiResponse(responseCode = "200", description = "Complaint successfully updated"),
         @ApiResponse(responseCode = "404", description = "Complaint ticket not found")
     })
-    @PutMapping("/{identifier}")
+    @PutMapping({"/{identifier}", "/{identifier}/"})
     public ResponseEntity<ComplaintResponse> updateComplaint(
             @PathVariable String identifier,
             @Valid @RequestBody ComplaintRequest request
@@ -124,7 +124,7 @@ public class ComplaintController {
      * Partially update complaint status or staff assignment
      */
     @Operation(summary = "Patch complaint status or assignment", description = "Update complaint status (e.g. In Progress, Resolved) or assigned staff.")
-    @PatchMapping("/{identifier}")
+    @PatchMapping({"/{identifier}", "/{identifier}/"})
     public ResponseEntity<ComplaintResponse> patchComplaintStatus(
             @PathVariable String identifier,
             @RequestBody StatusUpdateRequest request
@@ -137,7 +137,7 @@ public class ComplaintController {
      * Assign complaint to maintenance staff
      */
     @Operation(summary = "Assign staff member", description = "Assigns an authorized maintenance staff member and automatically updates ticket status to Assigned.")
-    @PatchMapping("/{identifier}/assign")
+    @PatchMapping({"/{identifier}/assign", "/{identifier}/assign/"})
     public ResponseEntity<ComplaintResponse> assignStaff(
             @PathVariable String identifier,
             @RequestBody Map<String, String> payload
@@ -158,7 +158,7 @@ public class ComplaintController {
         @ApiResponse(responseCode = "200", description = "Complaint successfully deleted"),
         @ApiResponse(responseCode = "404", description = "Complaint not found")
     })
-    @DeleteMapping("/{identifier}")
+    @DeleteMapping({"/{identifier}", "/{identifier}/"})
     public ResponseEntity<Map<String, Object>> deleteComplaint(@PathVariable String identifier) {
         complaintService.deleteComplaint(identifier);
         return ResponseEntity.ok(Map.of(
@@ -172,7 +172,7 @@ public class ComplaintController {
      * Aggregated statistics for dashboards
      */
     @Operation(summary = "Get complaint statistics", description = "Returns total, submitted, in-progress, and resolved metrics, plus category breakdowns.")
-    @GetMapping(path = {"/stats", "/analytics"})
+    @GetMapping(path = {"/stats", "/stats/", "/analytics", "/analytics/"})
     public ResponseEntity<Map<String, Object>> getComplaintStats() {
         return ResponseEntity.ok(complaintService.getComplaintStats());
     }
@@ -182,34 +182,76 @@ public class ComplaintController {
      * Critical/Emergency safety hazard alerts
      */
     @Operation(summary = "Get emergency alerts", description = "Returns active complaints flagged as Critical or High priority safety hazards.")
-    @GetMapping("/emergency-alerts")
+    @GetMapping({"/emergency-alerts", "/emergency_alerts", "/emergency_alerts/"})
     public ResponseEntity<List<ComplaintResponse>> getEmergencyAlerts() {
         return ResponseEntity.ok(complaintService.getEmergencyAlerts());
     }
 
     /**
-     * POST /api/v1/complaints/check-duplicate
-     * Duplicate detection endpoint
+     * GET & POST /api/v1/complaints/check_duplicate/
+     * Duplicate detection endpoint supporting both query parameters and JSON body
      */
     @Operation(summary = "Check for duplicate complaints", description = "Evaluates title, category, and location against open tickets to detect duplicates.")
-    @PostMapping("/check-duplicate")
-    public ResponseEntity<List<ComplaintResponse>> checkDuplicates(@RequestBody Map<String, String> payload) {
+    @GetMapping({"/check_duplicate", "/check_duplicate/", "/check-duplicate"})
+    public ResponseEntity<Map<String, Object>> checkDuplicatesGet(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String location
+    ) {
+        List<ComplaintResponse> duplicates = complaintService.checkDuplicates(title, category, location);
+        return ResponseEntity.ok(Map.of(
+                "found_duplicates", !duplicates.isEmpty(),
+                "duplicates", duplicates
+        ));
+    }
+
+    @PostMapping({"/check-duplicate", "/check_duplicate", "/check_duplicate/"})
+    public ResponseEntity<Map<String, Object>> checkDuplicatesPost(@RequestBody Map<String, String> payload) {
         String title = payload.get("title");
         String category = payload.get("category");
         String location = payload.get("location");
-        return ResponseEntity.ok(complaintService.checkDuplicates(title, category, location));
+        List<ComplaintResponse> duplicates = complaintService.checkDuplicates(title, category, location);
+        return ResponseEntity.ok(Map.of(
+                "found_duplicates", !duplicates.isEmpty(),
+                "duplicates", duplicates
+        ));
     }
 
     /**
-     * POST /api/v1/complaints/suggest-priority
+     * POST /api/v1/complaints/suggest-priority & detect_priority
      * Rule-based priority triage suggestion
      */
     @Operation(summary = "Suggest priority", description = "Rule-based priority suggestion based on complaint keywords, hazard severity, and category.")
-    @PostMapping("/suggest-priority")
-    public ResponseEntity<Map<String, String>> suggestPriority(@RequestBody Map<String, String> payload) {
+    @PostMapping({"/suggest-priority", "/detect_priority", "/detect_priority/"})
+    public ResponseEntity<Map<String, Object>> suggestPriority(@RequestBody Map<String, String> payload) {
         String title = payload.get("title");
         String description = payload.get("description");
         String category = payload.get("category");
-        return ResponseEntity.ok(complaintService.suggestPriority(title, description, category));
+        Map<String, String> sug = complaintService.suggestPriority(title, description, category);
+        return ResponseEntity.ok(Map.of(
+                "priority", sug.getOrDefault("suggestedPriority", "Medium"),
+                "suggestedPriority", sug.getOrDefault("suggestedPriority", "Medium"),
+                "reason", sug.getOrDefault("reason", "Standard campus maintenance request")
+        ));
+    }
+
+    /**
+     * POST /api/v1/complaints/analyze_image/
+     * Image inspection triage classification
+     */
+    @Operation(summary = "Analyze image", description = "Computer vision triage endpoint.")
+    @PostMapping({"/analyze_image", "/analyze_image/"})
+    public ResponseEntity<Map<String, Object>> analyzeImage(@RequestBody(required = false) Map<String, Object> payload) {
+        if (payload == null || !payload.containsKey("image") || payload.get("image") == null || payload.get("image").toString().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Valid image base64 data or image URL is required for AI analysis."
+            ));
+        }
+
+        // Multimodal image understanding requires multimodal vision AI models (Gemini Vision)
+        // Never return hardcoded mock categories (Electrical/Plumbing/Fan/AC/Furniture)
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+            "error", "Multimodal vision AI model is serviced via the application server (/api/complaints/analyze_image/) which runs genuine visual inspection."
+        ));
     }
 }

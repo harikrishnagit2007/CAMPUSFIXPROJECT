@@ -8,7 +8,6 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { StaffDashboard } from './pages/StaffDashboard';
 import { ComplaintModal } from './components/ComplaintModal';
 import { QRScannerModal } from './components/QRScannerModal';
-import { GeminiChatBot } from './components/GeminiChatBot';
 import { LostFoundModule } from './components/LostFoundModule';
 
 function AppContent() {
@@ -132,9 +131,6 @@ function AppContent() {
 
       {/* Global Toast Alerts */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
-
-      {/* Global Gemini Chatbot Assistant */}
-      {user && <GeminiChatBot showToast={showToast} />}
 
 
       {/* Footer */}

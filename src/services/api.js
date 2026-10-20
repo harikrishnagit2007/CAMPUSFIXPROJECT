@@ -8,9 +8,10 @@
  * Configurable via environment variable: VITE_JAVA_API_BASE_URL (e.g. http://localhost:8080/api)
  */
 
-const API_BASE_URL =
+const rawBase =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_JAVA_API_BASE_URL) ||
   '/api';
+const API_BASE_URL = rawBase.replace(/\/+$/, '');
 
 /**
  * Centralized HTTP request dispatcher
@@ -41,8 +42,8 @@ export async function apiRequest(endpoint, { method = 'GET', body = null, header
     if (storedUser.email) requestHeaders['X-User-Email'] = storedUser.email;
   }
 
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const fullUrl = `${API_BASE_URL}${normalizedEndpoint}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const fullUrl = `${API_BASE_URL}/${cleanEndpoint}`;
 
   const config = {
     method,
@@ -144,33 +145,7 @@ export const complaintsService = {
    * Java Endpoint: POST /api/v1/complaints
    */
   createComplaint: async (payload) => {
-    try {
-      const res = await apiRequest('/v1/complaints', { method: 'POST', body: payload });
-      if (res) return res;
-    } catch (err) {}
-    const newId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
-    const created = {
-      id: newId,
-      complaint_id: newId,
-      complaint_title: payload.complaint_title || payload.title || 'Campus Facility Issue',
-      category: payload.category || 'General Maintenance',
-      building: payload.building || 'Technology Block C',
-      room: payload.room || 'Room 304',
-      location: payload.location || `${payload.building || 'Block C'}, ${payload.room || '304'}`,
-      description: payload.description || '',
-      priority: payload.priority || 'Medium',
-      status: 'Submitted',
-      image: payload.image || '',
-      created_at: new Date().toISOString(),
-      student_details: payload.student_details || { name: 'Student User' },
-    };
-    try {
-      const cached = localStorage.getItem('campusfix_client_complaints');
-      const list = cached ? JSON.parse(cached) : [];
-      list.unshift(created);
-      localStorage.setItem('campusfix_client_complaints', JSON.stringify(list));
-    } catch {}
-    return created;
+    return await apiRequest('/v1/complaints', { method: 'POST', body: payload });
   },
 
   /**
@@ -178,20 +153,7 @@ export const complaintsService = {
    * Java Endpoint: PUT /api/v1/complaints/{id}
    */
   updateComplaint: async (id, payload) => {
-    try {
-      return await apiRequest(`/v1/complaints/${id}`, { method: 'PUT', body: payload });
-    } catch (err) {}
-    const cached = localStorage.getItem('campusfix_client_complaints');
-    if (cached) {
-      const list = JSON.parse(cached);
-      const idx = list.findIndex((c) => String(c.id) === String(id) || String(c.complaint_id) === String(id));
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...payload, updated_at: new Date().toISOString() };
-        localStorage.setItem('campusfix_client_complaints', JSON.stringify(list));
-        return list[idx];
-      }
-    }
-    return null;
+    return await apiRequest(`/v1/complaints/${id}`, { method: 'PUT', body: payload });
   },
 
   /**
@@ -199,10 +161,7 @@ export const complaintsService = {
    * Java Endpoint: PATCH /api/v1/complaints/{id}
    */
   patchComplaint: async (id, patchData) => {
-    try {
-      return await apiRequest(`/v1/complaints/${id}`, { method: 'PATCH', body: patchData });
-    } catch (err) {}
-    return complaintsService.updateComplaint(id, patchData);
+    return await apiRequest(`/v1/complaints/${id}`, { method: 'PATCH', body: patchData });
   },
 
   /**
@@ -210,17 +169,7 @@ export const complaintsService = {
    * Java Endpoint: DELETE /api/v1/complaints/{id}
    */
   deleteComplaint: async (id) => {
-    try {
-      return await apiRequest(`/v1/complaints/${id}`, { method: 'DELETE' });
-    } catch (err) {}
-    const cached = localStorage.getItem('campusfix_client_complaints');
-    if (cached) {
-      const list = JSON.parse(cached).filter(
-        (c) => String(c.id) !== String(id) && String(c.complaint_id) !== String(id)
-      );
-      localStorage.setItem('campusfix_client_complaints', JSON.stringify(list));
-    }
-    return { success: true };
+    return await apiRequest(`/v1/complaints/${id}`, { method: 'DELETE' });
   },
 
   /**

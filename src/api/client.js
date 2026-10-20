@@ -4,9 +4,10 @@
  */
 
 // Base API URL supports Java Spring Boot backend via environment variable (e.g. http://localhost:8080/api) or default proxy
-const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_JAVA_API_BASE_URL)
+const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_JAVA_API_BASE_URL)
   ? import.meta.env.VITE_JAVA_API_BASE_URL
   : '/api';
+const BASE_URL = rawBase.replace(/\/+$/, '');
 
 export async function apiClient(endpoint, { body, ...customConfig } = {}) {
   const token = localStorage.getItem('campusfix_token');
@@ -45,7 +46,8 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
     config.body = body instanceof FormData ? body : JSON.stringify(body);
   }
 
-  const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const url = `${BASE_URL}/${cleanEndpoint}`;
 
   let response;
   try {

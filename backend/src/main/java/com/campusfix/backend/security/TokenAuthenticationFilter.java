@@ -48,23 +48,6 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                 auth.setDetails(meta);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
-        } else {
-            // Check for development proxy headers (e.g. X-User-Id and X-User-Role)
-            String headerRole = request.getHeader("X-User-Role");
-            String headerUsername = request.getHeader("X-User-Name");
-            if (headerRole != null && !headerRole.trim().isEmpty()) {
-                String role = headerRole.trim().toUpperCase();
-                String username = (headerUsername != null && !headerUsername.trim().isEmpty()) ? headerUsername : "client-user";
-                List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                        new SimpleGrantedAuthority("ROLE_" + role)
-                );
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        username,
-                        null,
-                        authorities
-                );
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            }
         }
 
         filterChain.doFilter(request, response);

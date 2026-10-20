@@ -1289,136 +1289,158 @@ async function startServer() {
     return res.status(200).json({ message: 'Campus location deleted successfully.' });
   });
 
-  // --- AI-POWERED IMAGE ANALYSIS ROUTE ---
+  // --- REAL AI-POWERED MULTIMODAL IMAGE ANALYSIS ROUTE ---
   app.post('/api/complaints/analyze_image/', async (req: Request, res: Response) => {
     const { image } = req.body;
-    if (!image) {
-      return res.status(400).json({ error: 'Image data or URL is required for analysis.' });
+    if (!image || typeof image !== 'string' || image.trim().length === 0) {
+      return res.status(400).json({ error: 'Valid image base64 data or image URL is required for AI analysis.' });
     }
 
     try {
       const ai = getGeminiClient();
-      if (ai) {
-        let base64Data = '';
-        let mimeType = 'image/jpeg';
-
-        if (image.startsWith('data:')) {
-          const match = image.match(/^data:([^;]+);base64,(.+)$/);
-          if (match) {
-            mimeType = match[1];
-            base64Data = match[2];
-          }
-        } else if (image.startsWith('http')) {
-          const fetched = await fetch(image);
-          const buf = await fetched.arrayBuffer();
-          base64Data = Buffer.from(buf).toString('base64');
-          mimeType = fetched.headers.get('content-type') || 'image/jpeg';
-        } else {
-          base64Data = image;
-        }
-
-        if (base64Data) {
-          const prompt = `You are an expert college campus facility & maintenance inspector.
-Analyze this photo of a campus facility issue.
-Respond strictly in JSON matching the schema.
-- category: MUST be one of ['Electrical', 'Furniture', 'Classroom', 'Wi-Fi/Network', 'Plumbing', 'Cleaning', 'Projector', 'Fan/AC', 'Other']
-- severity: MUST be one of ['Low', 'Medium', 'High', 'Critical']
-- department: Suggest the most appropriate maintenance department, e.g. 'Electrical Maintenance', 'Civil & Plumbing', 'Carpentry', 'HVAC & Climate Control', 'IT Infrastructure'
-- confidence: Float between 0.70 and 0.99
-- reason: Concise 1-2 sentence assessment of the damage or hazard shown.`;
-
-          const contentPayload = {
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64Data,
-                },
-              },
-              {
-                text: prompt,
-              },
-            ],
-          };
-
-          const config = {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                category: { type: Type.STRING },
-                severity: { type: Type.STRING },
-                department: { type: Type.STRING },
-                confidence: { type: Type.NUMBER },
-                reason: { type: Type.STRING },
-              },
-              required: ['category', 'severity', 'department', 'confidence', 'reason'],
-            },
-          };
-
-          let responseText: string | undefined;
-
-          // Process image with Gemini 3.8 Flash Multimodal Vision
-          try {
-            const resp = await ai.models.generateContent({
-              model: 'gemini-3.8-flash',
-              contents: contentPayload,
-              config,
-            });
-            responseText = resp.text;
-          } catch (err) {
-            console.warn('Gemini vision analysis notice: using contextual campus maintenance diagnostics');
-          }
-
-          if (responseText) {
-            try {
-              const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-              const parsed = JSON.parse(cleanJson);
-              return res.status(200).json(parsed);
-            } catch (pErr) {
-              console.error('Failed to parse Gemini vision response JSON:', pErr);
-            }
-          }
-        }
+      if (!ai) {
+        return res.status(503).json({
+          error: 'AI Vision service is not configured. GEMINI_API_KEY is missing or invalid on the server.',
+        });
       }
-    } catch (err) {
-      console.warn('Image analysis handler exception, using offline diagnostics');
+
+      let base64Data = '';
+      let mimeType = 'image/jpeg';
+
+      if (image.startsWith('data:')) {
+        const match = image.match(/^data:([^;]+);base64,(.+)$/s);
+        if (match) {
+          mimeType = match[1];
+          base64Data = match[2].replace(/[\r\n\s]+/g, '');
+        } else {
+          return res.status(400).json({ error: 'Invalid data URL format for image.' });
+        }
+      } else if (image.startsWith('http://') || image.startsWith('https://')) {
+        const fetched = await fetch(image);
+        if (!fetched.ok) {
+          return res.status(400).json({ error: `Could not fetch remote image from URL: ${fetched.statusText}` });
+        }
+        const buf = await fetched.arrayBuffer();
+        base64Data = Buffer.from(buf).toString('base64');
+        mimeType = fetched.headers.get('content-type') || 'image/jpeg';
+      } else {
+        base64Data = image.trim().replace(/[\r\n\s]+/g, '');
+      }
+
+      if (!base64Data || base64Data.length < 50) {
+        return res.status(400).json({ error: 'Image payload is empty or invalid.' });
+      }
+
+      const prompt = `You are a certified college campus facility, structural, and physical maintenance inspector.
+Analyze the uploaded image with 100% visual truthfulness and strict evidence-based scrutiny.
+
+CRITICAL OBJECTIVITY RULES:
+- NEVER assume or hallucinate damage that is not clearly visible in the image.
+- NEVER invent an electrical hazard, water leak, broken furniture, or fan/AC failure unless clearly visible.
+- If the image shows a completely normal, undamaged object or environment, do NOT claim there is damage.
+
+STEP 1: IDENTIFY GENUINE MAINTENANCE VS UNRELATED IMAGES
+Determine whether this image depicts a genuine physical college campus facility maintenance issue or physical hazard (such as: damaged electrical switch/wiring, leaking plumbing pipes/faucets, broken desks/chairs/furniture, ceiling fan/AC leak, broken classroom projector, network cable damage, dirty facilities, etc.).
+
+CASE A - UNRELATED IMAGE OR NON-MAINTENANCE:
+If the image is NOT a campus maintenance issue (for example: computer/laptop screen, coding screenshot, online exam/quiz, food receipt or restaurant bill, selfie, personal portrait, vehicle, meme, scenic landscape, animal, artwork, textbook, or normal undamaged item):
+- Set "isMaintenanceIssue": false
+- For "detectedIssue": State precisely and truthfully what is actually visible in the image (e.g. "Laptop screenshot showing examination portal", "Food receipt / cafeteria bill", "Personal portrait photo", "Smartphone home screen").
+- Set "category": "Other"
+- For "description": Provide an honest, accurate visual description of what appears in the image without inventing any facility damage.
+- Set "severity": "Low"
+- Set "department": "General Administration"
+- For "reason": Explain clearly: "Not a valid campus maintenance issue. The uploaded image depicts [explain visible contents] and does not show any campus physical infrastructure damage, electrical hazard, plumbing leak, or furniture failure."
+
+CASE B - GENUINE CAMPUS FACILITY MAINTENANCE ISSUE:
+If and only if the image genuinely shows physical campus equipment, facility breakdown, or hazard:
+- Set "isMaintenanceIssue": true
+- For "detectedIssue": State the specific defect or damage identified (e.g. "Damaged wall electrical outlet with exposed wires", "Broken desk leg joint in classroom", "Ceiling air conditioner unit leaking water", "Broken fluorescent tube fixture", "Cracked washbasin pipe").
+- For "category": Select strictly the best category from:
+  ['Electrical', 'Furniture', 'Classroom', 'Wi-Fi/Network', 'Plumbing', 'Cleaning', 'Projector', 'Fan/AC', 'Other']
+- For "description": Detail the visible physical evidence and the extent of the defect.
+- For "severity": Choose from ['Low', 'Medium', 'High', 'Critical']
+  (Critical is strictly for imminent safety/health hazards like exposed live high-voltage wiring, heavy water flooding near electricals, or structural collapse risks).
+- For "department": Recommend the appropriate maintenance department:
+  ['Electrical Maintenance', 'Civil & Plumbing', 'Carpentry & Furniture', 'HVAC & Climate Control', 'IT & Network Infrastructure', 'Housekeeping & Cleaning', 'Audio-Visual Support']
+- For "confidence": A realistic confidence number between 0.70 and 0.99.
+- For "reason": Clear 1-2 sentence explanation citing the visible evidence in the photo.`;
+
+      const contentPayload = {
+        parts: [
+          {
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            },
+          },
+          {
+            text: prompt,
+          },
+        ],
+      };
+
+      const config = {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isMaintenanceIssue: { type: Type.BOOLEAN },
+            detectedIssue: { type: Type.STRING },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            severity: { type: Type.STRING },
+            department: { type: Type.STRING },
+            confidence: { type: Type.NUMBER },
+            reason: { type: Type.STRING },
+          },
+          required: [
+            'isMaintenanceIssue',
+            'detectedIssue',
+            'category',
+            'description',
+            'severity',
+            'department',
+            'confidence',
+            'reason',
+          ],
+        },
+      };
+
+      let resp;
+      try {
+        resp = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: contentPayload,
+          config,
+        });
+      } catch (geminiErr: any) {
+        console.warn('[Gemini 3.8 Flash notice]:', geminiErr?.message, 'retrying with gemini-3.1-flash-lite');
+        resp = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite',
+          contents: contentPayload,
+          config,
+        });
+      }
+
+      const responseText = resp.text?.replace(/```json/g, '').replace(/```/g, '').trim();
+      if (!responseText) {
+        return res.status(502).json({ error: 'AI Vision analysis returned empty response from provider.' });
+      }
+
+      const parsed = JSON.parse(responseText);
+      const validCategories = ['Electrical', 'Furniture', 'Classroom', 'Wi-Fi/Network', 'Plumbing', 'Cleaning', 'Projector', 'Fan/AC', 'Other'];
+      if (!validCategories.includes(parsed.category)) {
+        parsed.category = 'Other';
+      }
+
+      return res.status(200).json(parsed);
+    } catch (err: any) {
+      console.error('[CampusFix AI Vision Error]:', err.message || err);
+      return res.status(503).json({
+        error: `AI Vision analysis service encountered an error: ${err.message || 'Service unavailable'}. Please verify image or fill in details manually.`,
+      });
     }
-
-    // High-quality smart contextual fallback matching specifications
-    const fallbackOptions = [
-      {
-        category: 'Furniture',
-        severity: 'Medium',
-        department: 'Carpentry',
-        confidence: 0.92,
-        reason: 'Visual inspection indicates damaged furniture armrest or joint requiring repair.',
-      },
-      {
-        category: 'Electrical',
-        severity: 'Critical',
-        department: 'Electrical Maintenance',
-        confidence: 0.94,
-        reason: 'Visual inspection detects exposed conduit wiring or switchbox issue.',
-      },
-      {
-        category: 'Plumbing',
-        severity: 'High',
-        department: 'Civil & Plumbing',
-        confidence: 0.89,
-        reason: 'Visible pipe joint or faucet leakage causing water accumulation.',
-      },
-      {
-        category: 'Fan/AC',
-        severity: 'High',
-        department: 'HVAC & Climate Control',
-        confidence: 0.91,
-        reason: 'Air conditioning condensate issue or ventilation fan malfunction.',
-      },
-    ];
-
-    const pick = fallbackOptions[Math.floor(Math.random() * fallbackOptions.length)];
-    return res.status(200).json(pick);
   });
 
   // --- RESET CHATBOT ROUTE ---

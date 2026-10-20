@@ -28,38 +28,10 @@ export const complaintsApi = {
 
   // Create complaint (handles JSON or FormData)
   createComplaint: async (payload) => {
-    try {
-      const res = await apiClient('/complaints/', {
-        method: 'POST',
-        body: payload,
-      });
-      if (res) return res;
-    } catch (err) {
-      console.warn('API createComplaint notice:', err);
-    }
-    const newId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
-    const created = {
-      id: newId,
-      complaint_id: newId,
-      complaint_title: payload.complaint_title || 'Campus Facility Issue',
-      category: payload.category || 'General Maintenance',
-      building: payload.building || 'Technology Block C',
-      room: payload.room || 'Room 304',
-      location: `${payload.building || 'Technology Block C'}, ${payload.room || 'Room 304'}`,
-      description: payload.description || '',
-      priority: payload.priority || 'Medium',
-      status: 'Submitted',
-      image: payload.image || '',
-      created_at: new Date().toISOString(),
-      student_details: payload.student_details || { name: 'Student User' },
-    };
-    try {
-      const saved = localStorage.getItem('campusfix_client_complaints');
-      const list = saved ? JSON.parse(saved) : [];
-      list.unshift(created);
-      localStorage.setItem('campusfix_client_complaints', JSON.stringify(list));
-    } catch {}
-    return created;
+    return await apiClient('/complaints/', {
+      method: 'POST',
+      body: payload,
+    });
   },
 
   // Update complaint (student or admin)
@@ -136,52 +108,15 @@ export const complaintsApi = {
     return { priority: isCrit ? 'Critical' : 'Medium' };
   },
 
-  // AI-Powered Image Analysis with robust API call & instant AI vision fallback
+  // AI-Powered Image Analysis with authentic multimodal vision AI model
   analyzeImage: async (image) => {
-    try {
-      const res = await apiClient('/complaints/analyze_image/', {
-        method: 'POST',
-        body: { image },
-      });
-      if (res && res.category) return res;
-    } catch (err) {
-      console.warn('API analyze_image notice: utilizing client AI vision analysis engine', err);
+    if (!image || (typeof image === 'string' && image.trim().length === 0)) {
+      throw new Error('Please select or upload a valid image file first.');
     }
-
-    const fallbackResults = [
-      {
-        category: 'Electrical',
-        severity: 'Critical',
-        department: 'Electrical Maintenance',
-        confidence: 0.95,
-        reason: 'AI Vision detected exposed electrical wiring and spark hazard.',
-      },
-      {
-        category: 'Plumbing',
-        severity: 'High',
-        department: 'Civil & Plumbing',
-        confidence: 0.93,
-        reason: 'AI Vision detected active pipe leakage and floor moisture accumulation.',
-      },
-      {
-        category: 'Fan/AC',
-        severity: 'Medium',
-        department: 'HVAC & Climate Control',
-        confidence: 0.89,
-        reason: 'AI Vision detected climate unit airflow obstruction and filter dust.',
-      },
-      {
-        category: 'Furniture',
-        severity: 'Medium',
-        department: 'Carpentry & Facilities',
-        confidence: 0.91,
-        reason: 'AI Vision detected structural frame joint fracture on desk/seating.',
-      },
-    ];
-
-    const str = typeof image === 'string' ? image : JSON.stringify(image || '');
-    const idx = Math.abs(str.length) % fallbackResults.length;
-    return fallbackResults[idx];
+    return await apiClient('/complaints/analyze_image/', {
+      method: 'POST',
+      body: { image },
+    });
   },
 
   // Emergency Escalation Workflow

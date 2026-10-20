@@ -42,11 +42,7 @@ export const GeminiChatBot = ({ showToast }) => {
   const [loading, setLoading] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [voiceLang, setVoiceLang] = useState('ta-IN'); // 'ta-IN' | 'en-US'
 
-  const [taskType, setTaskType] = useState('general'); // 'fast' | 'general' | 'complex'
-  const [customSystemInstruction, setCustomSystemInstruction] = useState('');
-  const [showConfig, setShowConfig] = useState(false);
 
   const fileInputRef = useRef(null);
   const threadEndRef = useRef(null);
@@ -63,17 +59,15 @@ export const GeminiChatBot = ({ showToast }) => {
     }
   }, [messages, isOpen]);
 
-  // Dynamic Web Speech API Dictation (Tamil & English support)
-  const toggleVoiceRecording = (forcedLang) => {
+  // Dynamic Web Speech API Dictation
+  const toggleVoiceRecording = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      if (showToast) showToast('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.', 'warning');
+      if (showToast) showToast('Speech recognition is not supported in this browser.', 'warning');
       return;
     }
 
-    const currentLang = forcedLang || voiceLang;
-
-    if (isListening && !forcedLang) {
+    if (isListening) {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -97,12 +91,11 @@ export const GeminiChatBot = ({ showToast }) => {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = currentLang;
+      recognition.lang = 'en-US';
 
       recognition.onstart = () => {
         setIsListening(true);
-        const langLabel = currentLang === 'ta-IN' ? 'Tamil (தமிழ்)' : 'English';
-        if (showToast) showToast(`🎤 Listening in ${langLabel}... Speak now.`, 'info');
+        if (showToast) showToast('🎤 Listening... Speak now.', 'info');
       };
 
       recognition.onresult = (event) => {
@@ -124,14 +117,6 @@ export const GeminiChatBot = ({ showToast }) => {
       recognition.onerror = (err) => {
         console.warn('Speech recognition notice:', err);
         setIsListening(false);
-        if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
-          if (showToast) showToast('Microphone access blocked. Please allow mic in your browser address bar.', 'warning');
-        } else if (err.error === 'language-not-supported' && currentLang === 'ta-IN') {
-          setVoiceLang('en-US');
-          if (showToast) showToast('Tamil dictation unavailable on this device. Switched to English.', 'info');
-        } else if (err.error === 'no-speech') {
-          // Silent or brief pause, keep calm
-        }
       };
 
       recognition.onend = () => {
@@ -144,18 +129,6 @@ export const GeminiChatBot = ({ showToast }) => {
       console.warn('Speech activation exception:', err);
       setIsListening(false);
       if (showToast) showToast('Could not start microphone speech recognition.', 'warning');
-    }
-  };
-
-  const handleToggleVoiceLang = () => {
-    const nextLang = voiceLang === 'ta-IN' ? 'en-US' : 'ta-IN';
-    setVoiceLang(nextLang);
-    const label = nextLang === 'ta-IN' ? 'Tamil (தமிழ்)' : 'English';
-    if (showToast) showToast(`Dictation language set to: ${label}`, 'info');
-
-    // If currently listening, seamlessly restart with the newly selected language
-    if (isListening) {
-      toggleVoiceRecording(nextLang);
     }
   };
 
@@ -593,36 +566,6 @@ export const GeminiChatBot = ({ showToast }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
-                onClick={handleClearHistory}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ffffff',
-                  opacity: 0.8,
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title="Clear Chat History"
-              >
-                <Trash2 size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowConfig(!showConfig)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ffffff',
-                  opacity: 0.8,
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title="AI Settings"
-              >
-                <Info size={16} />
-              </button>
-              <button
-                type="button"
                 onClick={() => setIsOpen(false)}
                 style={{
                   background: 'none',
@@ -637,99 +580,6 @@ export const GeminiChatBot = ({ showToast }) => {
               </button>
             </div>
           </div>
-
-          {/* Configuration Drawer */}
-          {showConfig && (
-            <div
-              style={{
-                backgroundColor: '#f8fafc',
-                borderBottom: '1px solid #e2e8f0',
-                padding: '12px 16px',
-                fontSize: '0.82rem',
-              }}
-            >
-              <div style={{ fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
-                AI Model & Assistant Personality Settings
-              </div>
-
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>
-                  Select AI Capability
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setTaskType('fast')}
-                    style={{
-                      padding: '4px 2px',
-                      fontSize: '0.74rem',
-                      borderRadius: '4px',
-                      border: '1px solid',
-                      borderColor: taskType === 'fast' ? '#4f46e5' : '#cbd5e1',
-                      backgroundColor: taskType === 'fast' ? '#eff6ff' : '#ffffff',
-                      color: taskType === 'fast' ? '#1d4ed8' : '#475569',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ⚡ Fast
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTaskType('general')}
-                    style={{
-                      padding: '4px 2px',
-                      fontSize: '0.74rem',
-                      borderRadius: '4px',
-                      border: '1px solid',
-                      borderColor: taskType === 'general' ? '#4f46e5' : '#cbd5e1',
-                      backgroundColor: taskType === 'general' ? '#eff6ff' : '#ffffff',
-                      color: taskType === 'general' ? '#1d4ed8' : '#475569',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🤖 General
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTaskType('complex')}
-                    style={{
-                      padding: '4px 2px',
-                      fontSize: '0.74rem',
-                      borderRadius: '4px',
-                      border: '1px solid',
-                      borderColor: taskType === 'complex' ? '#4f46e5' : '#cbd5e1',
-                      backgroundColor: taskType === 'complex' ? '#eff6ff' : '#ffffff',
-                      color: taskType === 'complex' ? '#1d4ed8' : '#475569',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🧠 Complex
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>
-                  Custom Role / System Instructions
-                </label>
-                <textarea
-                  style={{
-                    width: '100%',
-                    height: '50px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    padding: '6px',
-                    fontSize: '0.78rem',
-                    resize: 'none',
-                    fontFamily: 'inherit',
-                  }}
-                  placeholder="e.g. You are an expert facility coordinator..."
-                  value={customSystemInstruction}
-                  onChange={(e) => setCustomSystemInstruction(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Quick Action Suggestion Chips */}
           <div
@@ -1122,32 +972,6 @@ export const GeminiChatBot = ({ showToast }) => {
               >
                 {isListening ? <MicOff size={16} className="animate-pulse text-red-600" /> : <Mic size={16} />}
               </button>
-
-              {/* Multi-Language Toggle Switcher (Tamil / English) */}
-              <button
-                type="button"
-                onClick={handleToggleVoiceLang}
-                style={{
-                  background: voiceLang === 'ta-IN' ? '#f59e0b' : '#4f46e5',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0 8px',
-                  height: '36px',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap',
-                  transition: 'background-color 0.2s ease',
-                }}
-                title="Click to toggle voice language (Tamil / English)"
-              >
-                {voiceLang === 'ta-IN' ? 'TA தமிழ்' : 'EN English'}
-              </button>
             </div>
 
             <input
@@ -1162,13 +986,7 @@ export const GeminiChatBot = ({ showToast }) => {
                 backgroundColor: isListening ? '#fff5f5' : '#ffffff',
                 transition: 'all 0.2s ease',
               }}
-              placeholder={
-                isListening
-                  ? voiceLang === 'ta-IN'
-                    ? '🎤 கேட்கிறது... தமிழில் பேசவும்...'
-                    : '🎤 Listening... Speak now in English...'
-                  : 'Ask AI or report issue (or speak)...'
-              }
+              placeholder={isListening ? '🎤 Listening... Speak now...' : 'Ask AI or report issue...'}
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={loading}

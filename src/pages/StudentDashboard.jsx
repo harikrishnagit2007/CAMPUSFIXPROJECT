@@ -25,7 +25,7 @@ import { ComplaintModal } from '../components/ComplaintModal';
 import { ComplaintDetailModal } from '../components/ComplaintDetailModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { QRScannerModal } from '../components/QRScannerModal';
-import { EmergencyBanner } from '../components/EmergencyBanner';
+
 
 const CATEGORIES = ['All', 'Electrical', 'Furniture', 'Classroom', 'Wi-Fi/Network', 'Plumbing', 'Cleaning', 'Projector', 'Fan/AC', 'Other'];
 const STATUSES = ['All', 'Submitted', 'Under Review', 'Assigned', 'In Progress', 'Resolved', 'Rejected'];
@@ -158,11 +158,7 @@ export const StudentDashboard = ({
 
   return (
     <div className="container" style={{ padding: '30px 20px' }}>
-      {/* Emergency Hazard Banner */}
-      <EmergencyBanner
-        emergencies={emergencies}
-        onSelectComplaint={(c) => setViewingComplaint(c)}
-      />
+
 
       {/* Student Welcome & Quick Actions */}
       <div

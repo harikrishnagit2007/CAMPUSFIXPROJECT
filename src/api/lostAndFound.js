@@ -217,45 +217,10 @@ export const lostAndFoundApi = {
    * Endpoint: POST /api/v1/lost-found/items
    */
   createItem: async (payload) => {
-    try {
-      const data = await apiClient('/v1/lost-found/items', {
-        method: 'POST',
-        body: payload,
-      });
-      if (data) return data;
-    } catch (err) {
-      console.info('Java Spring Boot API create item fallback.');
-    }
-
-    const items = getLocalItems();
-    const newId = items.length > 0 ? Math.max(...items.map((i) => Number(i.id) || 0)) + 1 : 1;
-    const newItem = {
-      id: newId,
-      itemCode: `LF-${new Date().getFullYear()}-${String(newId).padStart(3, '0')}`,
-      type: payload.type || 'LOST',
-      title: payload.title || 'Untitled Item',
-      category: payload.category || 'General',
-      description: payload.description || '',
-      location: payload.location || 'Campus',
-      building: payload.building || '',
-      dateOccurred: payload.dateOccurred || new Date().toISOString().split('T')[0],
-      status: 'OPEN',
-      reporterId: payload.reporterId || 'anonymous',
-      reporterName: payload.reporterName || 'Anonymous Student',
-      reporterRole: payload.reporterRole || 'STUDENT',
-      contactEmail: payload.contactEmail || '',
-      contactPhone: payload.contactPhone || '',
-      imageUrl: payload.imageUrl || '',
-      identifyingMarks: payload.identifyingMarks || '',
-      holdingLocation: payload.holdingLocation || '',
-      createdAt: new Date().toISOString(),
-    };
-
-    items.unshift(newItem);
-    try {
-      localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(items));
-    } catch {}
-    return newItem;
+    return await apiClient('/v1/lost-found/items', {
+      method: 'POST',
+      body: payload,
+    });
   },
 
   /**
@@ -263,24 +228,10 @@ export const lostAndFoundApi = {
    * Endpoint: PUT /api/v1/lost-found/items/{id}
    */
   updateItem: async (id, payload) => {
-    try {
-      const data = await apiClient(`/v1/lost-found/items/${id}`, {
-        method: 'PUT',
-        body: payload,
-      });
-      if (data) return data;
-    } catch (err) {
-      console.info('Java Spring Boot API update item fallback.');
-    }
-
-    const items = getLocalItems();
-    const idx = items.findIndex((i) => String(i.id) === String(id));
-    if (idx !== -1) {
-      items[idx] = { ...items[idx], ...payload, updatedAt: new Date().toISOString() };
-      localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(items));
-      return items[idx];
-    }
-    return null;
+    return await apiClient(`/v1/lost-found/items/${id}`, {
+      method: 'PUT',
+      body: payload,
+    });
   },
 
   /**
@@ -288,15 +239,7 @@ export const lostAndFoundApi = {
    * Endpoint: DELETE /api/v1/lost-found/items/{id}
    */
   deleteItem: async (id) => {
-    try {
-      await apiClient(`/v1/lost-found/items/${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.info('Java Spring Boot API delete item fallback.');
-    }
-
-    const items = getLocalItems().filter((i) => String(i.id) !== String(id));
-    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(items));
-    return { success: true };
+    return await apiClient(`/v1/lost-found/items/${id}`, { method: 'DELETE' });
   },
 
   /**
@@ -381,48 +324,10 @@ export const lostAndFoundApi = {
    * Endpoint: POST /api/v1/lost-found/claims
    */
   submitClaim: async (payload) => {
-    try {
-      const data = await apiClient('/v1/lost-found/claims', {
-        method: 'POST',
-        body: payload,
-      });
-      if (data) return data;
-    } catch (err) {
-      console.info('Java Spring Boot API submit claim fallback.');
-    }
-
-    const claims = getLocalClaims();
-    const newId = claims.length > 0 ? Math.max(...claims.map((c) => Number(c.id) || 0)) + 1 : 1;
-    const newClaim = {
-      id: newId,
-      claimCode: `CLM-${new Date().getFullYear()}-${String(newId).padStart(3, '0')}`,
-      itemId: payload.itemId,
-      itemTitle: payload.itemTitle || 'Claimed Item',
-      claimantId: payload.claimantId || 'anonymous',
-      claimantName: payload.claimantName || 'Claimant',
-      claimantEmail: payload.claimantEmail || '',
-      claimantPhone: payload.claimantPhone || '',
-      ownershipProof: payload.ownershipProof || '',
-      status: 'PENDING',
-      adminNotes: '',
-      submittedAt: new Date().toISOString(),
-      verifiedAt: null,
-    };
-
-    claims.unshift(newClaim);
-    try {
-      localStorage.setItem(STORAGE_CLAIMS_KEY, JSON.stringify(claims));
-
-      // Mark the item as CLAIM_PENDING in storage
-      const items = getLocalItems();
-      const itemIdx = items.findIndex((i) => String(i.id) === String(payload.itemId));
-      if (itemIdx !== -1) {
-        items[itemIdx].status = 'CLAIM_PENDING';
-        localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(items));
-      }
-    } catch {}
-
-    return newClaim;
+    return await apiClient('/v1/lost-found/claims', {
+      method: 'POST',
+      body: payload,
+    });
   },
 
   /**
@@ -462,36 +367,10 @@ export const lostAndFoundApi = {
    * Endpoint: PATCH /api/v1/lost-found/claims/{id}/status
    */
   updateClaimStatus: async (claimId, newStatus, adminNotes = '') => {
-    try {
-      const data = await apiClient(`/v1/lost-found/claims/${claimId}/status`, {
-        method: 'PATCH',
-        body: { status: newStatus, adminNotes },
-      });
-      if (data) return data;
-    } catch (err) {
-      console.info('Java Spring Boot API update claim status fallback.');
-    }
-
-    const claims = getLocalClaims();
-    const claimIdx = claims.findIndex((c) => String(c.id) === String(claimId));
-    if (claimIdx !== -1) {
-      claims[claimIdx].status = newStatus;
-      claims[claimIdx].adminNotes = adminNotes;
-      claims[claimIdx].verifiedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_CLAIMS_KEY, JSON.stringify(claims));
-
-      // If approved or handed over, update item status to RETURNED
-      if (newStatus === 'APPROVED' || newStatus === 'HANDED_OVER') {
-        const items = getLocalItems();
-        const itemIdx = items.findIndex((i) => String(i.id) === String(claims[claimIdx].itemId));
-        if (itemIdx !== -1) {
-          items[itemIdx].status = 'RETURNED';
-          localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(items));
-        }
-      }
-      return claims[claimIdx];
-    }
-    return null;
+    return await apiClient(`/v1/lost-found/claims/${claimId}/status`, {
+      method: 'PATCH',
+      body: { status: newStatus, adminNotes },
+    });
   },
 
   /**

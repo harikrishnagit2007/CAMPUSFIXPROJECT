@@ -33,7 +33,7 @@ import { StaffModal } from '../components/StaffModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { LocationModal } from '../components/LocationModal';
 import { QRBadgeModal } from '../components/QRBadgeModal';
-import { EmergencyBanner } from '../components/EmergencyBanner';
+
 
 const CATEGORIES = ['All', 'Electrical', 'Furniture', 'Classroom', 'Wi-Fi/Network', 'Plumbing', 'Cleaning', 'Projector', 'Fan/AC', 'Other'];
 const STATUSES = ['All', 'Submitted', 'Under Review', 'Assigned', 'In Progress', 'Resolved', 'Rejected'];
@@ -223,11 +223,7 @@ export const AdminDashboard = ({ showToast }) => {
 
   return (
     <div className="container" style={{ padding: '30px 20px' }}>
-      {/* Active Hazards Escalation Banner */}
-      <EmergencyBanner
-        emergencies={emergencies}
-        onSelectComplaint={(c) => setViewingComplaint(c)}
-      />
+
 
       {/* Header */}
       <div

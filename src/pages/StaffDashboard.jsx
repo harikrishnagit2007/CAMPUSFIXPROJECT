@@ -16,7 +16,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
 import { SlaCountdownBadge } from '../components/SlaCountdownBadge';
 import { ComplaintDetailModal } from '../components/ComplaintDetailModal';
-import { EmergencyBanner } from '../components/EmergencyBanner';
+
 
 const STATUSES = ['All', 'Submitted', 'Under Review', 'Assigned', 'In Progress', 'Resolved', 'Rejected'];
 const PRIORITIES = ['All', 'Critical', 'High', 'Medium', 'Low'];
@@ -97,11 +97,7 @@ export const StaffDashboard = ({ showToast }) => {
 
   return (
     <div className="container" style={{ padding: '30px 20px' }}>
-      {/* Emergency Alert Banner */}
-      <EmergencyBanner
-        emergencies={emergencies}
-        onSelectComplaint={(c) => setViewingComplaint(c)}
-      />
+
 
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
