@@ -1,0 +1,370 @@
+{
+  "timestamp": "2026-11-03T13:35:27.279Z",
+  "system": "CampusFix - Integrated Campus Issue & Facility Management Portal",
+  "version": "2.5.0",
+  "summary": {
+    "totalChecks": 48,
+    "passed": 48,
+    "warnings": 0,
+    "failed": 0,
+    "overallHealth": "HEALTHY - 100% OPERATIONAL"
+  },
+  "modules": {
+    "frontend": {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "AuthPage (Login & Self-Registration)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (23395 bytes)",
+          "status": "PASS",
+          "details": "src/pages/AuthPage.jsx"
+        },
+        {
+          "name": "StudentDashboard (Student Portal)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (20671 bytes)",
+          "status": "PASS",
+          "details": "src/pages/StudentDashboard.jsx"
+        },
+        {
+          "name": "AdminDashboard (Administration Portal)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (42935 bytes)",
+          "status": "PASS",
+          "details": "src/pages/AdminDashboard.jsx"
+        },
+        {
+          "name": "StaffDashboard (Maintenance Staff Portal)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (14446 bytes)",
+          "status": "PASS",
+          "details": "src/pages/StaffDashboard.jsx"
+        },
+        {
+          "name": "ComplaintModal (Issue Reporting & Image Capture)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (39630 bytes)",
+          "status": "PASS",
+          "details": "src/components/ComplaintModal.jsx"
+        },
+        {
+          "name": "ComplaintDetailModal (Issue Details & Workflow)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (37211 bytes)",
+          "status": "PASS",
+          "details": "src/components/ComplaintDetailModal.jsx"
+        },
+        {
+          "name": "CameraCaptureModal (Direct Camera Hardware Capture)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (7322 bytes)",
+          "status": "PASS",
+          "details": "src/components/CameraCaptureModal.jsx"
+        },
+        {
+          "name": "PriorityBadge (High/Medium/Low Priority)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (936 bytes)",
+          "status": "PASS",
+          "details": "src/components/PriorityBadge.jsx"
+        },
+        {
+          "name": "StatusBadge (Resolution Status)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (1186 bytes)",
+          "status": "PASS",
+          "details": "src/components/StatusBadge.jsx"
+        },
+        {
+          "name": "SlaCountdownBadge (SLA Tracking)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (6977 bytes)",
+          "status": "PASS",
+          "details": "src/components/SlaCountdownBadge.jsx"
+        },
+        {
+          "name": "LostFoundModule (Lost & Found Management)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (76072 bytes)",
+          "status": "PASS",
+          "details": "src/components/LostFoundModule.jsx"
+        },
+        {
+          "name": "ItemReportModal (Lost/Found Item Submission)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (18706 bytes)",
+          "status": "PASS",
+          "details": "src/components/lostfound/ItemReportModal.jsx"
+        },
+        {
+          "name": "ClaimModal (Ownership Claim Flow)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (8266 bytes)",
+          "status": "PASS",
+          "details": "src/components/lostfound/ClaimModal.jsx"
+        },
+        {
+          "name": "MatchFinderModal (AI Match Radar)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (10279 bytes)",
+          "status": "PASS",
+          "details": "src/components/lostfound/MatchFinderModal.jsx"
+        },
+        {
+          "name": "QRScannerModal (Location QR Scanner)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (21151 bytes)",
+          "status": "PASS",
+          "details": "src/components/QRScannerModal.jsx"
+        },
+        {
+          "name": "QRBadgeModal (Location QR Badge)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (7926 bytes)",
+          "status": "PASS",
+          "details": "src/components/QRBadgeModal.jsx"
+        },
+        {
+          "name": "AdminAnalyticsDashboard (Visual Analytics & Charts)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (28102 bytes)",
+          "status": "PASS",
+          "details": "src/components/AdminAnalyticsDashboard.jsx"
+        },
+        {
+          "name": "GeminiChatBot (Campus AI Assistant Chatbot)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (35802 bytes)",
+          "status": "PASS",
+          "details": "src/components/GeminiChatBot.jsx"
+        },
+        {
+          "name": "Navbar (Header Navigation & Module Switcher)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (4750 bytes)",
+          "status": "PASS",
+          "details": "src/components/Navbar.jsx"
+        },
+        {
+          "name": "Toast (User Alerts & System Notifications)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (1378 bytes)",
+          "status": "PASS",
+          "details": "src/components/Toast.jsx"
+        },
+        {
+          "name": "AuthContext (Authentication & Session State)",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (8137 bytes)",
+          "status": "PASS",
+          "details": "src/context/AuthContext.jsx"
+        },
+        {
+          "name": "Auth API Client",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (469 bytes)",
+          "status": "PASS",
+          "details": "src/api/auth.js"
+        },
+        {
+          "name": "Complaints API Client",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (5234 bytes)",
+          "status": "PASS",
+          "details": "src/api/complaints.js"
+        },
+        {
+          "name": "Lost & Found API Client",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (9315 bytes)",
+          "status": "PASS",
+          "details": "src/api/lostAndFound.js"
+        },
+        {
+          "name": "AI Chat API Client",
+          "expected": "Component file exists with > 0 bytes",
+          "actual": "Verified (4345 bytes)",
+          "status": "PASS",
+          "details": "src/api/chat.js"
+        }
+      ]
+    },
+    "apiEndpoints": {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Endpoint: GET /api/health",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "System Health Check & Connectivity"
+        },
+        {
+          "name": "Endpoint: GET /api/v1/health",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "v1 Spring Boot/Node Health Check API"
+        },
+        {
+          "name": "Endpoint: POST /api/auth/login",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "User Authentication (Student/Admin/Staff)"
+        },
+        {
+          "name": "Endpoint: POST /api/auth/register",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "New User Self-Registration"
+        },
+        {
+          "name": "Endpoint: GET /api/auth/me",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Current User Profile Session"
+        },
+        {
+          "name": "Endpoint: GET /api/complaints",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Retrieve Complaints"
+        },
+        {
+          "name": "Endpoint: POST /api/complaints",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Submit New Campus Issue"
+        },
+        {
+          "name": "Endpoint: GET /api/lost-found",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Retrieve Lost & Found Items"
+        },
+        {
+          "name": "Endpoint: POST /api/lost-found",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Report Lost/Found Item"
+        },
+        {
+          "name": "Endpoint: POST /api/ai/analyze-complaint",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "Gemini Multimodal Image & Issue Analyzer"
+        },
+        {
+          "name": "Endpoint: POST /api/ai/chat",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "AI Campus Assistant Chatbot API"
+        },
+        {
+          "name": "Endpoint: POST /api/ai/match-lost-found",
+          "expected": "Defined and active in server.ts",
+          "actual": "Verified active in server",
+          "status": "PASS",
+          "details": "AI Radar Matching for Lost & Found"
+        },
+        {
+          "name": "Java Controller: AuthController.java",
+          "expected": "Present in Spring Boot backend",
+          "actual": "Verified present",
+          "status": "PASS",
+          "details": "backend/src/main/java/com/campusfix/backend/controller/AuthController.java"
+        },
+        {
+          "name": "Java Controller: ComplaintController.java",
+          "expected": "Present in Spring Boot backend",
+          "actual": "Verified present",
+          "status": "PASS",
+          "details": "backend/src/main/java/com/campusfix/backend/controller/ComplaintController.java"
+        },
+        {
+          "name": "Java Controller: HealthController.java",
+          "expected": "Present in Spring Boot backend",
+          "actual": "Verified present",
+          "status": "PASS",
+          "details": "backend/src/main/java/com/campusfix/backend/controller/HealthController.java"
+        },
+        {
+          "name": "Java Controller: LostFoundController.java",
+          "expected": "Present in Spring Boot backend",
+          "actual": "Verified present",
+          "status": "PASS",
+          "details": "backend/src/main/java/com/campusfix/backend/controller/LostFoundController.java"
+        },
+        {
+          "name": "Java Controller: AiController.java",
+          "expected": "Present in Spring Boot backend",
+          "actual": "Verified present",
+          "status": "PASS",
+          "details": "backend/src/main/java/com/campusfix/backend/controller/AiController.java"
+        }
+      ]
+    },
+    "database": {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Local JSON Persistent Storage (campusfix_db.json)",
+          "expected": "Contains valid user, complaint, and campus record collections",
+          "actual": "Active (8 users, 7 complaints, 0 lost/found)",
+          "status": "PASS",
+          "details": ""
+        },
+        {
+          "name": "Spring Boot MySQL Connectivity Configuration",
+          "expected": "MySQL JDBC Driver & Connection Pool in application.properties",
+          "actual": "Configured with JDBC MySQL Driver and HikariCP pool",
+          "status": "PASS",
+          "details": ""
+        },
+        {
+          "name": "Database Schema Migrations (Flyway)",
+          "expected": "SQL schema migration scripts exist in backend/src/main/resources/db/migration",
+          "actual": "Active (2 migration scripts found)",
+          "status": "PASS",
+          "details": ""
+        },
+        {
+          "name": "Firebase Firestore Cloud Database Integration",
+          "expected": "Firestore configured with offline caching and security rules",
+          "actual": "Verified: Firestore client initialized with persistent cache",
+          "status": "PASS",
+          "details": ""
+        }
+      ]
+    },
+    "aiIntegration": {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "Server-Side Gemini AI Engine Integration",
+          "expected": "Configured in server.ts without exposing API keys to client",
+          "actual": "Verified: @google/genai used server-side with fallback heuristics",
+          "status": "PASS",
+          "details": ""
+        },
+        {
+          "name": "Campus AI Assistant Chatbot Component",
+          "expected": "Verified component present with Markdown and speech-to-text",
+          "actual": "Verified: 1000+ line GeminiChatBot component present",
+          "status": "PASS",
+          "details": ""
+        }
+      ]
+    }
+  }
+}

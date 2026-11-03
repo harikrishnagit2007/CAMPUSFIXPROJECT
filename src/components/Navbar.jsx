@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wrench, LogOut, QrCode, Search } from 'lucide-react';
+import { Wrench, LogOut, QrCode, Search, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const Navbar = ({
@@ -131,6 +131,7 @@ export const Navbar = ({
             </button>
           </div>
         ) : null}
+
       </div>
     </header>
   );

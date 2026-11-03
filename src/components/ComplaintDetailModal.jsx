@@ -57,15 +57,6 @@ export const ComplaintDetailModal = ({
   // Location QR view
   const [viewLocationQr, setViewLocationQr] = useState(null);
 
-  useEffect(() => {
-    if (complaint && isOpen) {
-      setSelectedStaffId(complaint.assigned_staff || '');
-      setSelectedStatus(complaint.status || 'Submitted');
-      setShowEscalationForm(false);
-      loadPotentialDuplicates();
-    }
-  }, [complaint, isOpen]);
-
   const loadPotentialDuplicates = async () => {
     if (!complaint) return;
     setLoadingDuplicates(true);
@@ -84,6 +75,15 @@ export const ComplaintDetailModal = ({
       setLoadingDuplicates(false);
     }
   };
+
+  useEffect(() => {
+    if (complaint && isOpen) {
+      setSelectedStaffId(complaint.assigned_staff || '');
+      setSelectedStatus(complaint.status || 'Submitted');
+      setShowEscalationForm(false);
+      loadPotentialDuplicates();
+    }
+  }, [complaint, isOpen]);
 
   if (!isOpen || !complaint) return null;
 
@@ -844,6 +844,64 @@ export const ComplaintDetailModal = ({
                 >
                   Mark Resolved
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Audit History Log */}
+          {complaint.status_history && complaint.status_history.length > 0 && (
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px 18px',
+                marginBottom: '20px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Clock size={16} color="#6366f1" /> Status Audit History Trail
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {complaint.status_history.map((entry, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {entry.previous_status ? `${entry.previous_status} → ${entry.new_status || entry.status}` : (entry.new_status || entry.status)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                        {new Date(entry.timestamp || entry.changed_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#334155' }}>
+                      <strong>Modified By:</strong> {entry.changed_by} ({entry.role || 'ADMIN/STAFF'})
+                    </div>
+                    {entry.notes && (
+                      <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px', fontStyle: 'italic' }}>
+                        "{entry.notes}"
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}

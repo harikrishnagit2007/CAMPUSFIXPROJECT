@@ -9,9 +9,11 @@ import {
   Sparkles,
   Bot,
   Check,
+  Camera,
 } from 'lucide-react';
 import { complaintsApi } from '../api/complaints';
 import { QRScannerModal } from './QRScannerModal';
+import { CameraCaptureModal } from './CameraCaptureModal';
 import { db, auth } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
@@ -55,6 +57,7 @@ export const ComplaintModal = ({
 
   // QR pre-fill and picker state
   const [isQrPickerOpen, setIsQrPickerOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [qrPrefilled, setQrPrefilled] = useState(false);
 
   // AI Image Analysis state
@@ -194,37 +197,12 @@ export const ComplaintModal = ({
       setImagePreview(objectUrl);
       setAiAnalysis(null);
       setAppliedAi(false);
-      setIsAnalyzingImage(true);
 
-      // Convert to base64 and automatically dispatch to AI vision service
       const reader = new FileReader();
-      reader.onload = async () => {
+      reader.onload = () => {
         const base64 = reader.result;
         setImageBase64(base64);
-
-        try {
-          const result = await complaintsApi.analyzeImage(base64);
-          if (result) {
-            setAiAnalysis(result);
-            if (showToast) {
-              if (result.isMaintenanceIssue === false) {
-                showToast(`AI Vision: Unrelated image detected (${result.detectedIssue})`, 'warning');
-              } else {
-                showToast(`AI Vision: Suggested ${result.category} (${result.severity} Priority)`, 'info');
-              }
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          if (showToast) {
-            showToast(err?.message || 'AI Vision analysis service busy. Please proceed manually.', 'warning');
-          }
-        } finally {
-          setIsAnalyzingImage(false);
-        }
-      };
-      reader.onerror = () => {
-        setIsAnalyzingImage(false);
+        if (showToast) showToast('Photo loaded successfully! Click "Analyze Image with AI" to verify.', 'success');
       };
       reader.readAsDataURL(file);
     }
@@ -699,7 +677,7 @@ export const ComplaintModal = ({
                     }}
                   >
                     <Bot size={14} />
-                    {isAnalyzingImage ? 'Analyzing...' : 'Re-analyze with AI'}
+                    {isAnalyzingImage ? 'Analyzing...' : aiAnalysis ? 'Re-analyze with AI' : 'Analyze Image with AI'}
                   </button>
                 )}
               </div>
@@ -729,6 +707,29 @@ export const ComplaintModal = ({
                     onChange={handleImageChange}
                   />
                 </label>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 16px',
+                    background: '#ffffff',
+                    border: '1px solid var(--primary-600)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.84rem',
+                    color: 'var(--primary-700)',
+                    fontWeight: 600,
+                    transition: 'all 0.15s ease',
+                    boxShadow: '0 1px 3px rgba(99, 102, 241, 0.15)',
+                  }}
+                >
+                  <Camera size={16} color="var(--primary-600)" />
+                  <span>Take Photo</span>
+                </button>
 
                 {imagePreview && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -995,6 +996,18 @@ export const ComplaintModal = ({
         isOpen={isQrPickerOpen}
         onClose={() => setIsQrPickerOpen(false)}
         onSelectLocation={handleSelectQrLocation}
+        showToast={showToast}
+      />
+
+      {/* Sub-modal: MediaDevices Camera Capture */}
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={(file) => {
+          // Trigger the same image processing and AI analysis flow as file input
+          const syntheticEvent = { target: { files: [file] } };
+          handleImageChange(syntheticEvent);
+        }}
         showToast={showToast}
       />
     </>

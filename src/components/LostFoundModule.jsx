@@ -94,7 +94,7 @@ export const LostFoundModule = ({ showToast }) => {
     description: '',
     location: '',
     building: 'Technology Block C',
-    date: '2026-10-18',
+    date: new Date().toISOString().split('T')[0],
     approxTime: '10:30 AM',
     distinguishingMarks: '',
     image: null,
@@ -110,7 +110,7 @@ export const LostFoundModule = ({ showToast }) => {
     description: '',
     location: '',
     building: 'Science Block B',
-    date: '2026-10-18',
+    date: new Date().toISOString().split('T')[0],
     approxTime: '02:15 PM',
     distinguishingMarks: '',
     custodyStatus: 'Security Desk Gate 1',
@@ -184,6 +184,31 @@ export const LostFoundModule = ({ showToast }) => {
   };
 
   useEffect(() => {
+    // Purge any legacy mock seed items from client storage so only user-reported items show
+    try {
+      const legacyMockCodes = [
+        'LF-2026-001', 'LF-2026-002', 'LF-2026-003', 'LF-2026-004',
+        'LF-LOST-8A91C2', 'LF-FOUND-3B77E1', 'LF-FOUND-9D42F0', 'LF-LOST-5K88A3'
+      ];
+      const raw = localStorage.getItem('campusfix_lostfound_items');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(i => !legacyMockCodes.includes(i.itemCode || i.item_code));
+          localStorage.setItem('campusfix_lostfound_items', JSON.stringify(cleaned));
+        }
+      }
+      const rawClaims = localStorage.getItem('campusfix_lostfound_claims');
+      if (rawClaims) {
+        const parsedClaims = JSON.parse(rawClaims);
+        if (Array.isArray(parsedClaims)) {
+          const cleanedClaims = parsedClaims.filter(c => !['CLM-2026-001', 'CLM-77A12'].includes(c.claimCode || c.claim_code));
+          localStorage.setItem('campusfix_lostfound_claims', JSON.stringify(cleanedClaims));
+        }
+      }
+    } catch (e) {
+      console.warn('Storage cleanup notice:', e);
+    }
     fetchData();
   }, []);
 
@@ -226,7 +251,7 @@ export const LostFoundModule = ({ showToast }) => {
         description: '',
         location: '',
         building: 'Technology Block C',
-        date: '2026-10-18',
+        date: new Date().toISOString().split('T')[0],
         approxTime: '10:30 AM',
         distinguishingMarks: '',
         image: null,
@@ -284,7 +309,7 @@ export const LostFoundModule = ({ showToast }) => {
         description: '',
         location: '',
         building: 'Science Block B',
-        date: '2026-10-18',
+        date: new Date().toISOString().split('T')[0],
         approxTime: '02:15 PM',
         distinguishingMarks: '',
         custodyStatus: 'Security Desk Gate 1',
@@ -400,7 +425,7 @@ export const LostFoundModule = ({ showToast }) => {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const combined = `${item.itemName || item.title || ''} ${item.description || ''} ${item.location || ''} ${item.category || ''} ${item.itemCode || ''}`.toLowerCase();
+      const combined = `${item.itemName || item.title || item.item_name || ''} ${item.description || ''} ${item.location || ''} ${item.category || ''} ${item.itemCode || item.item_code || ''}`.toLowerCase();
       return combined.includes(q);
     }
     return true;
@@ -741,20 +766,20 @@ export const LostFoundModule = ({ showToast }) => {
                           </span>
                         </div>
                         <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                          #{item.itemCode || `LF-${item.id}`}
+                          #{item.itemCode || item.item_code || `LF-${item.id}`}
                         </span>
                       </div>
 
                       {/* Photo Thumbnail if attached */}
                       {item.image && (
                         <div style={{ marginBottom: '10px', borderRadius: '8px', overflow: 'hidden', height: '130px', background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-                          <img src={item.image} alt={item.itemName || 'Campus item'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={item.image} alt={item.itemName || item.title || item.item_name || 'Campus item'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       )}
 
                       {/* Title & Category */}
                       <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>
-                        {item.itemName || item.title}
+                        {item.itemName || item.title || item.item_name || 'Campus Item'}
                       </h3>
                       <div style={{ marginBottom: '12px' }}>
                         <span className="badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontSize: '0.74rem' }}>
@@ -786,12 +811,12 @@ export const LostFoundModule = ({ showToast }) => {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Calendar size={14} color="var(--primary-600)" style={{ flexShrink: 0 }} />
-                          <span><strong>Date:</strong> {item.date || item.dateOccurred}</span>
+                          <span><strong>Date:</strong> {item.date || item.dateOccurred || item.date_occurred}</span>
                         </div>
-                        {item.holdingLocation && (
+                        {(item.holdingLocation || item.holding_location) && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#047857' }}>
                             <Building size={14} style={{ flexShrink: 0 }} />
-                            <span><strong>Custody:</strong> {item.holdingLocation}</span>
+                            <span><strong>Custody:</strong> {item.holdingLocation || item.holding_location}</span>
                           </div>
                         )}
                       </div>

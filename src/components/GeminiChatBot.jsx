@@ -34,7 +34,7 @@ export const GeminiChatBot = ({ showToast }) => {
   const { user } = useAuth();
   const fbCurrentUser = auth.currentUser;
   const isFbAuthed = Boolean(fbCurrentUser);
-  const chatUserId = fbCurrentUser ? fbCurrentUser.uid : user ? String(user.uid || user.id || 'anonymous') : 'anonymous';
+  const chatUserId = fbCurrentUser ? fbCurrentUser.uid : user ? String(user.id || user.uid || user.email || user.username || 'anonymous') : 'anonymous';
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -42,6 +42,8 @@ export const GeminiChatBot = ({ showToast }) => {
   const [loading, setLoading] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [taskType, setTaskType] = useState('default');
+  const [customSystemInstruction, setCustomSystemInstruction] = useState('');
 
 
   const fileInputRef = useRef(null);
@@ -160,6 +162,7 @@ export const GeminiChatBot = ({ showToast }) => {
 
       return () => unsubscribe();
     } else {
+      setMessages([]);
       try {
         const stored = localStorage.getItem(`campusfix_chat_${chatUserId}`);
         if (stored) {
@@ -566,6 +569,26 @@ export const GeminiChatBot = ({ showToast }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
+                onClick={handleClearHistory}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  padding: '5px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                }}
+                title="Clear Chat History"
+              >
+                <Trash2 size={14} /> Clear
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 style={{
                   background: 'none',
@@ -579,92 +602,6 @@ export const GeminiChatBot = ({ showToast }) => {
                 <ChevronDown size={18} />
               </button>
             </div>
-          </div>
-
-          {/* Quick Action Suggestion Chips */}
-          <div
-            style={{
-              padding: '8px 12px',
-              background: '#f8fafc',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              gap: '6px',
-              overflowX: 'auto',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <button
-              onClick={() => handleSend("How many issues have been reported so far?")}
-              style={{
-                background: '#e0e7ff',
-                color: '#4338ca',
-                border: 'none',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <PlusCircle size={12} /> Check Issues Summary
-            </button>
-            <button
-              onClick={() => handleSend("Open the report form")}
-              style={{
-                background: '#e0e7ff',
-                color: '#4338ca',
-                border: 'none',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Camera size={12} /> Open Report Modal
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                background: '#e0e7ff',
-                color: '#4338ca',
-                border: 'none',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Paperclip size={12} /> Attach Photo
-            </button>
-            <button
-              onClick={() => handleSend("What should I do in a campus emergency or safety hazard?")}
-              style={{
-                background: '#fee2e2',
-                color: '#991b1b',
-                border: 'none',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <ShieldAlert size={12} /> Emergency
-            </button>
           </div>
 
           {/* Scrollable Chat Thread */}

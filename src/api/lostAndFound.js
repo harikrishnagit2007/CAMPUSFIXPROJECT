@@ -21,7 +21,7 @@ import { apiClient } from './client';
 const STORAGE_ITEMS_KEY = 'campusfix_lostfound_items';
 const STORAGE_CLAIMS_KEY = 'campusfix_lostfound_claims';
 
-// Seed initial demo items if none exist in local preview storage
+// Retrieve local items without inserting fake seed data
 function getLocalItems() {
   try {
     const raw = localStorage.getItem(STORAGE_ITEMS_KEY);
@@ -29,96 +29,7 @@ function getLocalItems() {
   } catch (e) {
     console.warn('Could not parse local items', e);
   }
-
-  const initialItems = [
-    {
-      id: 1,
-      itemCode: 'LF-2026-001',
-      type: 'LOST',
-      title: 'Blue Hydro Flask Water Bottle',
-      category: 'Personal Belongings',
-      description: 'Navy blue 32oz Hydro Flask with several stickers (NASA and React logo). Lost near Science Block.',
-      location: 'Science Block B, 2nd Floor Corridor',
-      building: 'Science Block B',
-      dateOccurred: '2026-10-15',
-      status: 'OPEN', // OPEN, CLAIM_PENDING, RETURNED, CLOSED
-      reporterId: 'stu-101',
-      reporterName: 'Kavitha S.',
-      reporterRole: 'STUDENT',
-      contactEmail: 'kavitha.s@rajalakshmi.edu.in',
-      contactPhone: '+91 98765 43210',
-      imageUrl: '',
-      identifyingMarks: 'Small dent on the bottom rim, NASA circular sticker.',
-      createdAt: '2026-10-15T09:30:00Z',
-    },
-    {
-      id: 2,
-      itemCode: 'LF-2026-002',
-      type: 'FOUND',
-      title: 'Blue Insulated Water Flask',
-      category: 'Personal Belongings',
-      description: 'Found a dark blue metal bottle with stickers on bench outside Science Lab.',
-      location: 'Science Block B, Room 204 Outer Bench',
-      building: 'Science Block B',
-      dateOccurred: '2026-10-15',
-      status: 'OPEN',
-      reporterId: 'staff-401',
-      reporterName: 'Ramesh Kumar (Security Desk)',
-      reporterRole: 'STAFF',
-      contactEmail: 'security@rajalakshmi.edu.in',
-      contactPhone: '+91 98765 11223',
-      imageUrl: '',
-      identifyingMarks: 'Stickers on body, blue lid with loop handle.',
-      holdingLocation: 'Security Gate 1 Main Office',
-      createdAt: '2026-10-15T11:45:00Z',
-    },
-    {
-      id: 3,
-      itemCode: 'LF-2026-003',
-      type: 'LOST',
-      title: 'Dell Inspiron 65W Laptop Charger',
-      category: 'Electronics',
-      description: 'Black round barrel tip Dell laptop AC power adapter with velcro tie.',
-      location: 'Central Library, 1st Floor Study Cubicle 14',
-      building: 'Central Library',
-      dateOccurred: '2026-10-16',
-      status: 'OPEN',
-      reporterId: 'stu-102',
-      reporterName: 'Arun Prasath',
-      reporterRole: 'STUDENT',
-      contactEmail: 'arun.prasath@rajalakshmi.edu.in',
-      contactPhone: '+91 98450 67890',
-      imageUrl: '',
-      identifyingMarks: 'Yellow tape band around charging cable.',
-      createdAt: '2026-10-16T14:15:00Z',
-    },
-    {
-      id: 4,
-      itemCode: 'LF-2026-004',
-      type: 'FOUND',
-      title: 'Student College ID Card & Lanyard',
-      category: 'ID Cards & Keys',
-      description: 'Rajalakshmi Engineering College blue lanyard with identity card.',
-      location: 'Mechanical Workshop Block, Near Water Cooler',
-      building: 'Mechanical Workshop',
-      dateOccurred: '2026-10-17',
-      status: 'CLAIM_PENDING',
-      reporterId: 'staff-402',
-      reporterName: 'Priya M. (Lab Assistant)',
-      reporterRole: 'STAFF',
-      contactEmail: 'priya.m@rajalakshmi.edu.in',
-      contactPhone: '+91 98401 54321',
-      imageUrl: '',
-      identifyingMarks: 'Department of AIDS batch card.',
-      holdingLocation: 'Department Office HOD Cabin Reception',
-      createdAt: '2026-10-17T08:00:00Z',
-    },
-  ];
-
-  try {
-    localStorage.setItem(STORAGE_ITEMS_KEY, JSON.stringify(initialItems));
-  } catch {}
-  return initialItems;
+  return [];
 }
 
 function getLocalClaims() {
@@ -128,29 +39,7 @@ function getLocalClaims() {
   } catch (e) {
     console.warn('Could not parse local claims', e);
   }
-
-  const initialClaims = [
-    {
-      id: 1,
-      claimCode: 'CLM-2026-001',
-      itemId: 4,
-      itemTitle: 'Student College ID Card & Lanyard',
-      claimantId: 'stu-105',
-      claimantName: 'Harikrishna G M',
-      claimantEmail: 'harikrishna.gm.2025.aids@rajalakshmi.edu.in',
-      claimantPhone: '+91 98765 00001',
-      ownershipProof: 'Register number 210801045, batch 2025 AIDS, back of ID has library barcode #REC-8821.',
-      status: 'UNDER_REVIEW', // PENDING, UNDER_REVIEW, APPROVED, REJECTED, HANDED_OVER
-      adminNotes: 'Verification scheduled at Department Office reception.',
-      submittedAt: '2026-10-17T09:10:00Z',
-      verifiedAt: null,
-    },
-  ];
-
-  try {
-    localStorage.setItem(STORAGE_CLAIMS_KEY, JSON.stringify(initialClaims));
-  } catch {}
-  return initialClaims;
+  return [];
 }
 
 export const lostAndFoundApi = {

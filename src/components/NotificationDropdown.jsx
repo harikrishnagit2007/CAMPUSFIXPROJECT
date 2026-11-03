@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, AlertTriangle, Info, Flame, CheckCircle, Clock } from 'lucide-react';
+import { Bell, Check, AlertTriangle, Info, Flame, CheckCircle, Clock, Mail, Send } from 'lucide-react';
 import { notificationsApi } from '../api/notifications';
 
 export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
   const [notifications, setNotifications] = useState([]);
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [activeTab, setActiveTab] = useState('system'); // 'system' | 'email'
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const dropdownRef = useRef(null);
 
   const fetchNotifications = async () => {
     try {
       const data = await notificationsApi.getNotifications();
       setNotifications(data || []);
+      const emails = await notificationsApi.getEmailLogs();
+      setEmailLogs(emails || []);
     } catch {
       // ignore
     }
@@ -133,6 +137,76 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
+  const handleTriggerTestEmail = async () => {
+    setSendingTest(true);
+    try {
+      const res = await notificationsApi.sendTestEmail();
+      if (showToast) showToast('Test resolution email dispatched to student!', 'success');
+      fetchNotifications();
+    } catch {
+      if (showToast) showToast('Failed to send test email', 'error');
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative' }} ref={dropdownRef}>
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          position: 'relative',
+          padding: '8px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}
+        title="Notifications & Automated Email Alerts"
+      >
+        <Bell size={16} />
+        {unreadCount > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              borderRadius: '9999px',
+              padding: '1px 5px',
+              minWidth: '16px',
+              height: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
+            }}
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            right: 0,
+            width: '360px',
+            maxHeight: '460px',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+            border: '1px solid #e2e8f0',
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
           {/* Header */}
@@ -146,10 +220,43 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
               backgroundColor: '#f8fafc',
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b' }}>
-              Notifications {unreadCount > 0 && `(${unreadCount} new)`}
+            <div style={{ display: 'flex', gap: '6px', background: '#e2e8f0', padding: '3px', borderRadius: '8px' }}>
+              <button
+                onClick={() => setActiveTab('system')}
+                style={{
+                  border: 'none',
+                  background: activeTab === 'system' ? '#ffffff' : 'transparent',
+                  color: activeTab === 'system' ? '#4f46e5' : '#64748b',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                In-App Alerts ({notifications.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('email')}
+                style={{
+                  border: 'none',
+                  background: activeTab === 'email' ? '#ffffff' : 'transparent',
+                  color: activeTab === 'email' ? '#4f46e5' : '#64748b',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Mail size={12} /> Emails ({emailLogs.length})
+              </button>
             </div>
-            {unreadCount > 0 && (
+
+            {activeTab === 'system' && unreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllRead}
@@ -165,68 +272,120 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                 Mark all read
               </button>
             )}
+
+            {activeTab === 'email' && (
+              <button
+                type="button"
+                onClick={handleTriggerTestEmail}
+                disabled={sendingTest}
+                style={{
+                  background: '#10b981',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Send size={11} /> {sendingTest ? 'Sending...' : 'Test Alert'}
+              </button>
+            )}
           </div>
 
-          {/* List */}
+          {/* List Content */}
           <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
-            {notifications.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
-                No notifications right now.
-              </div>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => handleNotificationClick(n)}
-                  style={{
-                    padding: '10px 14px',
-                    display: 'flex',
-                    gap: '10px',
-                    borderBottom: '1px solid #f1f5f9',
-                    backgroundColor: n.read ? '#ffffff' : '#f0fdf4',
-                    cursor: n.complaint_id ? 'pointer' : 'default',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (n.complaint_id) e.currentTarget.style.backgroundColor = '#f8fafc';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = n.read ? '#ffffff' : '#f0fdf4';
-                  }}
-                >
-                  <div style={{ marginTop: '2px', flexShrink: 0 }}>{getIcon(n.type)}</div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontWeight: n.read ? 600 : 700,
-                        fontSize: '0.8rem',
-                        color: n.read ? '#334155' : '#0f172a',
-                      }}
-                    >
-                      {n.title}
+            {activeTab === 'system' ? (
+              notifications.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+                  No in-app notifications right now.
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    style={{
+                      padding: '10px 14px',
+                      display: 'flex',
+                      gap: '10px',
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: n.read ? '#ffffff' : '#f0fdf4',
+                      cursor: n.complaint_id ? 'pointer' : 'default',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <div style={{ marginTop: '2px', flexShrink: 0 }}>{getIcon(n.type)}</div>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontWeight: n.read ? 600 : 700,
+                          fontSize: '0.8rem',
+                          color: n.read ? '#334155' : '#0f172a',
+                        }}
+                      >
+                        {n.title}
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', lineHeight: '1.3' }}>
+                        {n.message}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={10} />
+                        <span>{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px', lineHeight: '1.3' }}>
-                      {n.message}
+                  </div>
+                ))
+              )
+            ) : (
+              emailLogs.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+                  No automated resolution email logs yet. Click 'Test Alert' above to trigger an email dispatch.
+                </div>
+              ) : (
+                emailLogs.map((e) => (
+                  <div
+                    key={e.id}
+                    style={{
+                      padding: '10px 14px',
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0f172a' }}>
+                        {e.complaint_id} Resolved Alert
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: e.status === 'SENT' ? '#dcfce7' : '#e0e7ff',
+                          color: e.status === 'SENT' ? '#15803d' : '#4338ca',
+                        }}
+                      >
+                        {e.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#475569', marginTop: '2px' }}>
+                      To: <strong>{e.recipient_name}</strong> ({e.recipient_email})
+                    </div>
+                    <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '3px', fontStyle: 'italic' }}>
+                      "{e.subject}"
                     </div>
                     <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Clock size={10} />
-                      <span>{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{new Date(e.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
-                  {!n.read && (
-                    <div
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#6366f1',
-                        marginTop: '6px',
-                        flexShrink: 0,
-                      }}
-                    />
-                  )}
-                </div>
-              ))
+                ))
+              )
             )}
           </div>
         </div>

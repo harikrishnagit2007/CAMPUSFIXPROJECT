@@ -80,6 +80,28 @@ export const LostFoundModule = ({ showToast }) => {
   };
 
   useEffect(() => {
+    try {
+      const legacyMockCodes = [
+        'LF-2026-001', 'LF-2026-002', 'LF-2026-003', 'LF-2026-004',
+        'LF-LOST-8A91C2', 'LF-FOUND-3B77E1', 'LF-FOUND-9D42F0', 'LF-LOST-5K88A3'
+      ];
+      const raw = localStorage.getItem('campusfix_lostfound_items');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(i => !legacyMockCodes.includes(i.itemCode || i.item_code));
+          localStorage.setItem('campusfix_lostfound_items', JSON.stringify(cleaned));
+        }
+      }
+      const rawClaims = localStorage.getItem('campusfix_lostfound_claims');
+      if (rawClaims) {
+        const parsedClaims = JSON.parse(rawClaims);
+        if (Array.isArray(parsedClaims)) {
+          const cleanedClaims = parsedClaims.filter(c => !['CLM-2026-001', 'CLM-77A12'].includes(c.claimCode || c.claim_code));
+          localStorage.setItem('campusfix_lostfound_claims', JSON.stringify(cleanedClaims));
+        }
+      }
+    } catch {}
     fetchData();
   }, []);
 

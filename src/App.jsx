@@ -9,6 +9,7 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ComplaintModal } from './components/ComplaintModal';
 import { QRScannerModal } from './components/QRScannerModal';
 import { LostFoundModule } from './components/LostFoundModule';
+import { GeminiChatBot } from './components/GeminiChatBot';
 
 function AppContent() {
   const { user, loading, isStudent, isAdmin, isStaff } = useAuth();
@@ -132,18 +133,8 @@ function AppContent() {
       {/* Global Toast Alerts */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
-
-      {/* Footer */}
-      <footer style={{ background: 'white', borderTop: '1px solid var(--border-subtle)', padding: '20px 0', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-        <div className="container">
-          <p>
-            <strong>CampusFix</strong> • Integrated Campus Management Portal • Issue Reporting & Lost and Found
-          </p>
-          <p style={{ marginTop: '4px', fontSize: '0.76rem' }}>
-            Multi-Module Campus Infrastructure • QR Smart Locations • Possible-Match Radar • Java Spring Boot REST Ready
-          </p>
-        </div>
-      </footer>
+      {/* Floating Campus AI Assistant Chatbot */}
+      <GeminiChatBot showToast={showToast} />
     </div>
   );
 }

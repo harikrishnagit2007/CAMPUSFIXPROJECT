@@ -143,6 +143,21 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('campusfix_user', JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
+    try {
+      if (data?.user?.id) {
+        const userDocRef = doc(db, 'users', String(data.user.id));
+        await setDoc(userDocRef, {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role || 'STUDENT',
+          department: data.user.department || '',
+          lastLogin: new Date().toISOString(),
+        }, { merge: true });
+      }
+    } catch {
+      // Non-blocking firestore sync
+    }
     return data;
   };
 
@@ -162,6 +177,23 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('campusfix_user', JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
+    try {
+      if (data?.user?.id) {
+        const userDocRef = doc(db, 'users', String(data.user.id));
+        await setDoc(userDocRef, {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          username: data.user.username || data.user.email.split('@')[0],
+          role: data.user.role || 'STUDENT',
+          department: data.user.department || 'General',
+          phone: data.user.phone || '',
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Firestore registration sync notice:', e);
+    }
     return data;
   };
 
