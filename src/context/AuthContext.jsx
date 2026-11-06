@@ -204,6 +204,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    return await authApi.forgotPassword(email);
+  };
+
+  const resetPassword = async (email, token, newPassword) => {
+    const data = await authApi.resetPassword(email, token, newPassword);
+    localStorage.setItem('campusfix_token', data.token);
+    localStorage.setItem('campusfix_user', JSON.stringify(data.user));
+    setToken(data.token);
+    setUser(data.user);
+    return data;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -215,6 +228,8 @@ export const AuthProvider = ({ children }) => {
         quickDemoLogin,
         register,
         logout,
+        forgotPassword,
+        resetPassword,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'ADMIN',
         isStudent: user?.role === 'STUDENT',

@@ -22,4 +22,16 @@ export const authApi = {
     apiClient('/auth/me/', {
       method: 'GET',
     }),
+
+  forgotPassword: (email) =>
+    apiClient('/auth/forgot-password/', {
+      method: 'POST',
+      body: { email },
+    }),
+
+  resetPassword: (email, token, newPassword) =>
+    apiClient('/auth/reset-password/', {
+      method: 'POST',
+      body: { email, token, newPassword },
+    }),
 };

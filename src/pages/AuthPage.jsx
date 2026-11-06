@@ -11,13 +11,23 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export const AuthPage = ({ showToast }) => {
-  const { login, register, signInWithGoogle } = useAuth();
+  const { login, register, signInWithGoogle, forgotPassword, resetPassword } = useAuth();
   
   // Selected Role Portal: 'STUDENT' | 'ADMIN' | 'STAFF'
   const [selectedPortal, setSelectedPortal] = useState('STUDENT');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Forgot Password modal states
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'confirm'
+  const [resetTokenInput, setResetTokenInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [simulatedResetToken, setSimulatedResetToken] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   // Helper to ensure role display always uses 'Student', 'Admin', 'Staff' (strictly singular, never 'Students')
   const getRoleLabel = (role) => {
@@ -112,6 +122,52 @@ export const AuthPage = ({ showToast }) => {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    if (!forgotEmail) {
+      setForgotError('Please enter your registered email address.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await forgotPassword(forgotEmail.trim());
+      if (res && res.resetToken) {
+        setSimulatedResetToken(res.resetToken);
+        setResetTokenInput(res.resetToken);
+      }
+      setForgotStep('confirm');
+      if (showToast) showToast('Password reset instructions sent!', 'success');
+    } catch (err) {
+      setForgotError(err.message || 'Failed to send password reset email.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    if (!resetTokenInput || !newPasswordInput || newPasswordInput.length < 6) {
+      setForgotError('Please enter a valid reset token and a new password (min 6 characters).');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await resetPassword(forgotEmail.trim(), resetTokenInput.trim(), newPasswordInput);
+      if (showToast) showToast('Password successfully reset! Welcome back.', 'success');
+      setShowForgotModal(false);
+      setForgotStep('request');
+      setForgotEmail('');
+      setResetTokenInput('');
+      setNewPasswordInput('');
+    } catch (err) {
+      setForgotError(err.message || 'Password reset failed. Check your token.');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -256,7 +312,16 @@ export const AuthPage = ({ showToast }) => {
                 <input type="text" className="form-control" value={loginData.email} onChange={(e) => setLoginData({...loginData, email: e.target.value})} required />
               </div>
               <div className="form-group">
-                <label>Password</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <label>Password</label>
+                  <button
+                    type="button"
+                    onClick={() => { setShowForgotModal(true); setForgotError(''); setForgotStep('request'); setForgotEmail(loginData.email); }}
+                    style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <input type="password" className="form-control" value={loginData.password} onChange={(e) => setLoginData({...loginData, password: e.target.value})} required />
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>Sign In</button>
@@ -305,6 +370,138 @@ export const AuthPage = ({ showToast }) => {
 
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '420px',
+            padding: '28px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+            color: '#1e293b',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+                {forgotStep === 'request' ? 'Reset Password' : 'Enter New Password'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {forgotError && (
+              <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '16px' }}>
+                {forgotError}
+              </div>
+            )}
+
+            {forgotStep === 'request' ? (
+              <form onSubmit={handleForgotSubmit}>
+                <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '16px' }}>
+                  Enter your registered email address and we'll send you a password reset token.
+                </p>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>Email Address</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="e.g. student@campusfix.edu"
+                    required
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowForgotModal(false)}
+                    style={{ padding: '8px 16px', borderRadius: '8px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={forgotLoading}
+                    style={{ padding: '8px 16px', borderRadius: '8px' }}
+                  >
+                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPasswordSubmit}>
+                <div style={{ backgroundColor: '#f0fdf4', color: '#166534', padding: '12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '16px' }}>
+                  <strong>Reset email dispatched!</strong><br />
+                  {simulatedResetToken && (
+                    <span>Simulated token auto-filled: <code>{simulatedResetToken}</code></span>
+                  )}
+                </div>
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>Reset Token</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={resetTokenInput}
+                    onChange={(e) => setResetTokenInput(e.target.value)}
+                    placeholder="Enter token (e.g. CFX-RST-...)"
+                    required
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>New Password (min 6 chars)</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    placeholder="Enter new password"
+                    required
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setForgotStep('request')}
+                    style={{ padding: '8px 16px', borderRadius: '8px' }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={forgotLoading}
+                    style={{ padding: '8px 16px', borderRadius: '8px' }}
+                  >
+                    {forgotLoading ? 'Resetting...' : 'Update Password & Login'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
