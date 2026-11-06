@@ -6,8 +6,6 @@ import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
 
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 60, message = "Username must be between 3 and 60 characters")
     private String username;
 
     @NotBlank(message = "Email is required")
@@ -28,7 +26,14 @@ public class RegisterRequest {
     public RegisterRequest() {}
 
     public String getUsername() {
-        return username;
+        if (username != null && !username.trim().isEmpty()) {
+            return username.trim();
+        }
+        if (email != null && email.contains("@")) {
+            String prefix = email.split("@")[0].trim().toLowerCase().replaceAll("[^a-zA-Z0-9_]", "_");
+            return prefix.length() < 3 ? (prefix + "_usr") : prefix;
+        }
+        return "user_" + (System.currentTimeMillis() % 100000);
     }
 
     public void setUsername(String username) {

@@ -1,0 +1,4 @@
+com/campusfix/backend/repository/ComplaintRepositoryTest.class
+com/campusfix/backend/repository/LostFoundItemRepositoryTest.class
+com/campusfix/backend/service/ComplaintServiceImplTest.class
+com/campusfix/backend/service/AuthServiceSecurityTest.class

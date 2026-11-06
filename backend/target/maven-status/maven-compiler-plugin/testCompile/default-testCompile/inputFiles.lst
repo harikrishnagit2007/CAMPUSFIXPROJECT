@@ -1,0 +1,4 @@
+/app/applet/backend/src/test/java/com/campusfix/backend/repository/ComplaintRepositoryTest.java
+/app/applet/backend/src/test/java/com/campusfix/backend/service/ComplaintServiceImplTest.java
+/app/applet/backend/src/test/java/com/campusfix/backend/service/AuthServiceSecurityTest.java
+/app/applet/backend/src/test/java/com/campusfix/backend/repository/LostFoundItemRepositoryTest.java

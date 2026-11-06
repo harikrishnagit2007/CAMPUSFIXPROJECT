@@ -39,8 +39,13 @@ public class ComplaintServiceImpl implements ComplaintService {
                 (building != null && !building.trim().isEmpty()) ? building.trim() : null
             );
         } else {
-            complaints = complaintRepository.findAll();
-            complaints.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            complaints = new java.util.ArrayList<>(complaintRepository.findAll());
+            complaints.sort((a, b) -> {
+                if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+                if (a.getCreatedAt() == null) return 1;
+                if (b.getCreatedAt() == null) return -1;
+                return b.getCreatedAt().compareTo(a.getCreatedAt());
+            });
         }
 
         return complaints.stream()

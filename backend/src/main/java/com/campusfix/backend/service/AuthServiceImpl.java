@@ -58,7 +58,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(AuthRequest request) {
-        String identifier = request.getUsername().trim();
+        String identifier = request.getUsername();
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new IllegalArgumentException("Username or email is required");
+        }
+        identifier = identifier.trim();
         Optional<User> userOpt = userRepository.findByUsername(identifier);
         if (userOpt.isEmpty()) {
             userOpt = userRepository.findByEmail(identifier.toLowerCase());
@@ -104,14 +108,8 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(request.getEmail().trim().toLowerCase());
         user.setName(request.getName().trim());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        String assignedRole = "STUDENT";
-        if (request.getRole() != null) {
-            String r = request.getRole().trim().toUpperCase();
-            if ("ADMIN".equals(r) || "STAFF".equals(r) || "STUDENT".equals(r)) {
-                assignedRole = r;
-            }
-        }
-        user.setRole(assignedRole);
+        // Security constraint: Public self-registration is strictly restricted to STUDENT role
+        user.setRole("STUDENT");
         user.setDepartment(request.getDepartment());
         user.setPhone(request.getPhone());
 

@@ -80,63 +80,6 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
     }
   };
 
-  return (
-    <div style={{ position: 'relative' }} ref={dropdownRef}>
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          position: 'relative',
-          padding: '8px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-        }}
-        title="Notifications"
-      >
-        <Bell size={16} />
-        {unreadCount > 0 && (
-          <span
-            style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              fontSize: '0.65rem',
-              fontWeight: 800,
-              borderRadius: '9999px',
-              padding: '1px 5px',
-              minWidth: '16px',
-              height: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
-            }}
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            width: '340px',
-            maxHeight: '420px',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-            border: '1px solid #e2e8f0',
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
   const handleTriggerTestEmail = async () => {
     setSendingTest(true);
     try {

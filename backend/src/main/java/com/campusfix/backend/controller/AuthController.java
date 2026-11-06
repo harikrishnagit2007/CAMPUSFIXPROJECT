@@ -26,19 +26,19 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/login")
+    @PostMapping({"/login", "/login/"})
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/register")
+    @PostMapping({"/register", "/register/"})
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping({"/me", "/profile"})
+    @GetMapping({"/me", "/me/", "/profile", "/profile/"})
     public ResponseEntity<UserResponse> getCurrentUser(
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
@@ -46,7 +46,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.getCurrentUser(token));
     }
 
-    @PostMapping("/logout")
+    @PostMapping({"/logout", "/logout/"})
     public ResponseEntity<Map<String, Object>> logout(
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {

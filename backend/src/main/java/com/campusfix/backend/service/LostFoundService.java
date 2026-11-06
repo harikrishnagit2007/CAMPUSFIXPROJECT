@@ -1,6 +1,7 @@
 package com.campusfix.backend.service;
 
 import com.campusfix.backend.dto.*;
+import com.campusfix.backend.entity.enums.ClaimStatus;
 import com.campusfix.backend.entity.enums.ItemStatus;
 import com.campusfix.backend.entity.enums.ItemType;
 

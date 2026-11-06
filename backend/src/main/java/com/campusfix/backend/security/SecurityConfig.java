@@ -46,16 +46,20 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public authentication and documentation endpoints
+                // Public authentication, health, and documentation endpoints
                 .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
+                .requestMatchers("/api/v1/health/**", "/api/health/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Allow OPTIONS pre-flight checks
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Public read operations across complaints, locations, and lost-found items
+                // Public read operations across complaints, locations, lost-found items, and notifications
                 .requestMatchers(HttpMethod.GET, "/api/v1/complaints/**", "/api/complaints/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/lost-found/**", "/api/lost-found/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/locations/**", "/api/locations/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/staff/**", "/api/staff/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/notifications/**", "/api/notifications/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/notifications/**", "/api/notifications/**").permitAll()
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/notifications/**", "/api/notifications/**").permitAll()
                 // Permit public reporting for complaints and lost/found items
                 .requestMatchers(HttpMethod.POST, "/api/v1/complaints", "/api/complaints", "/api/v1/complaints/check-duplicate", "/api/v1/complaints/suggest-priority").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/lost-found/items", "/api/v1/lost-found/report", "/api/v1/lost-found/claims").permitAll()

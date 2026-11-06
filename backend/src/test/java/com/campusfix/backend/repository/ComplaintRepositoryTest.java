@@ -28,6 +28,7 @@ public class ComplaintRepositoryTest {
         complaint.setComplaintTitle("Projector not working in Tech Hall");
         complaint.setCategory("Electrical");
         complaint.setBuilding("Technology Block A");
+        complaint.setLocation("Technology Block A - Room 101");
         complaint.setDescription("The projector powers off every 10 minutes.");
         complaint.setPriority("High");
         complaint.setStatus("Submitted");
@@ -48,6 +49,7 @@ public class ComplaintRepositoryTest {
         c1.setComplaintTitle("Leaking faucet");
         c1.setCategory("Plumbing");
         c1.setBuilding("Hostel Block B");
+        c1.setLocation("Hostel Block B - Room 204");
         c1.setPriority("Medium");
         c1.setStatus("Submitted");
         c1.setCreatedAt(LocalDateTime.now().minusHours(2));
@@ -58,6 +60,7 @@ public class ComplaintRepositoryTest {
         c2.setComplaintTitle("Fixed door knob");
         c2.setCategory("Furniture");
         c2.setBuilding("Admin Block");
+        c2.setLocation("Admin Block - Room 12");
         c2.setPriority("Low");
         c2.setStatus("Resolved");
         c2.setCreatedAt(LocalDateTime.now().minusDays(1));
@@ -77,6 +80,7 @@ public class ComplaintRepositoryTest {
         c1.setComplaintTitle("Power outage in Lab");
         c1.setCategory("Electrical");
         c1.setBuilding("Science Block");
+        c1.setLocation("Science Block - Lab 3");
         c1.setPriority("Critical");
         c1.setStatus("In Progress");
         c1.setCreatedAt(LocalDateTime.now());

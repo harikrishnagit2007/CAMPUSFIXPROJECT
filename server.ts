@@ -8,10 +8,23 @@ import QRCode from 'qrcode';
 import { GoogleGenAI, Type, Modality, LiveServerMessage } from '@google/genai';
 import { WebSocketServer, WebSocket } from 'ws';
 import { sendResolutionEmail, getSentEmailLogs } from './src/services/emailService';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_FILE = path.resolve(__dirname, 'campusfix_db.json');
+
+// MySQL Connection Pool Configuration removed for now
+const dbConfig = {
+  host: process.env.MYSQL_HOST || 'localhost',
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'campusfix_db',
+  multipleStatements: true
+};
+
 
 // Helper to retrieve Gemini Client if API key is present
 function getGeminiClient(): GoogleGenAI | null {
@@ -1106,12 +1119,13 @@ function calculateSemanticSimilarity(
 }
 
 async function startServer() {
+  console.log('[CampusFix] Starting server sequence...');
   loadDbFromDisk();
-  await initLocationQRCodes();
-  saveDbToDisk();
+  console.log('[CampusFix] DB loaded.');
 
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  // AIS environment compatibility: prefer DEFAULT_APP_PORT (3000) over PORT (8080)
+  const PORT = process.env.DEFAULT_APP_PORT || 3000;
 
   app.use(cors());
   app.use(express.json({ limit: '15mb' }));
@@ -1845,6 +1859,7 @@ CAPABILITIES:
   });
 
   // --- AUTH ROUTES ---
+
   app.post('/api/auth/login/', (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -1852,11 +1867,14 @@ CAPABILITIES:
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    // Validate credentials against server-side user data
     const user = users.find(u => u.email.toLowerCase() === cleanEmail || u.username.toLowerCase() === cleanEmail);
+    
     if (!user || user.password !== password) {
-      return res.status(400).json({ error: 'Invalid credentials. Please check your email/username and password.' });
+      return res.status(401).json({ error: 'Invalid credentials. Please check your email/username and password.' });
     }
 
+    // Server-side session management via tokenMap
     const token = `token-${user.id}-${Date.now()}`;
     tokenMap.set(token, user);
 
@@ -1901,7 +1919,7 @@ CAPABILITIES:
 
     users.push(newUser);
 
-    // If registered as STAFF, also register their staff profile so they can receive tickets
+    // If registered as STAFF, also register their staff profile
     if (assignedRole === 'STAFF') {
       const existingStaff = staffProfiles.find(s => s.email.toLowerCase() === cleanEmail);
       if (!existingStaff) {
@@ -3142,7 +3160,11 @@ Campus Maintenance Data:
     console.log('[CampusFix Server] Mount dynamic Vite rendering middleware');
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: '0.0.0.0' },
+      server: { 
+        middlewareMode: true, 
+        host: '0.0.0.0',
+        hmr: false // Disable HMR to avoid port conflicts in AIS environment
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -3218,8 +3240,18 @@ Campus Maintenance Data:
     }
   });
 
+  console.log('[CampusFix] Attempting to listen on port', PORT);
   server.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`[CampusFix] Server running at http://0.0.0.0:${PORT}`);
+    console.log(`[CampusFix] Server successfully listening at http://0.0.0.0:${PORT}`);
+    
+    // Background initialization after port is bound to avoid pre-warm timeouts
+    initLocationQRCodes().then(() => {
+      console.log('[CampusFix] QR Codes initialized.');
+      saveDbToDisk();
+      console.log('[CampusFix] Initial state persisted.');
+    }).catch(err => {
+      console.error('[CampusFix] Post-startup initialization failed:', err);
+    });
   });
 }
 

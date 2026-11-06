@@ -254,6 +254,8 @@ public class LostFoundServiceImpl implements LostFoundService {
         return claimRepository.findByItemId(item.getId()).stream()
                 .map(ItemClaimResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<ItemClaimResponse> getAllClaims(ClaimStatus status) {

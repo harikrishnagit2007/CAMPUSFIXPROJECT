@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,8 @@ public class LostFoundItemRepositoryTest {
         item.setType(ItemType.LOST);
         item.setCategory("Electronics");
         item.setBuilding("Library Building");
+        item.setLocation("Central Library, 2nd Floor");
+        item.setDateOccurred(LocalDate.now());
         item.setDescription("Space gray laptop with stickers on lid.");
         item.setStatus(ItemStatus.OPEN);
         item.setCreatedAt(LocalDateTime.now());
@@ -51,6 +54,8 @@ public class LostFoundItemRepositoryTest {
         item1.setType(ItemType.FOUND);
         item1.setCategory("Documents");
         item1.setBuilding("Cafeteria");
+        item1.setLocation("North Dining Wing table");
+        item1.setDateOccurred(LocalDate.now());
         item1.setDescription("ID card for Computer Science student.");
         item1.setStatus(ItemStatus.OPEN);
         item1.setCreatedAt(LocalDateTime.now());
@@ -71,6 +76,8 @@ public class LostFoundItemRepositoryTest {
         foundItem.setType(ItemType.FOUND);
         foundItem.setCategory("Electronics");
         foundItem.setBuilding("Engineering Block");
+        foundItem.setLocation("Room 102 desk");
+        foundItem.setDateOccurred(LocalDate.now());
         foundItem.setStatus(ItemStatus.OPEN);
         foundItem.setCreatedAt(LocalDateTime.now());
         entityManager.persist(foundItem);

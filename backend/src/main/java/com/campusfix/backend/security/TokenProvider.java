@@ -77,18 +77,6 @@ public class TokenProvider {
             return meta;
         }
 
-        // Support demo tokens (e.g. demo-token-1-admin, demo-token-2-student)
-        if (clean.startsWith("demo-token-")) {
-            String[] parts = clean.split("-");
-            if (parts.length >= 4) {
-                try {
-                    Long id = Long.parseLong(parts[2]);
-                    String name = parts[3];
-                    String role = (parts.length > 4) ? parts[4].toUpperCase() : (name.contains("admin") ? "ADMIN" : name.contains("staff") ? "STAFF" : "STUDENT");
-                    return new TokenMetadata(id, name, role, 86400000L);
-                } catch (NumberFormatException ignored) {}
-            }
-        }
         return null;
     }
 

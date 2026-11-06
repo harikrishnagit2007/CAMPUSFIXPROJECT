@@ -505,11 +505,13 @@
   ],
   "lostFoundItems": [],
   "itemClaims": [],
+  "complaintAuditLogs": [],
   "nextUserId": 9,
   "nextStaffId": 6,
   "nextComplaintId": 8,
   "nextNotificationId": 5,
   "nextLostFoundId": 2,
   "nextClaimId": 1,
-  "savedAt": "2026-11-03T12:39:20.384Z"
+  "nextAuditLogId": 1,
+  "savedAt": "2026-11-06T07:07:52.055Z"
 }

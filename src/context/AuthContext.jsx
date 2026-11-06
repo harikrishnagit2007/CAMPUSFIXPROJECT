@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../api/auth';
-import { auth, googleProvider, db, signInWithPopup, fbSignOut } from '../firebase';
+import { auth, googleProvider, db, signInWithPopup, signInWithRedirect, getRedirectResult, fbSignOut } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -90,47 +90,40 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Handle Redirect Result
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const fbUser = result.user;
+          const preferredRole = localStorage.getItem('campusfix_selected_role') || 'STUDENT';
+          const userDocRef = doc(db, 'users', fbUser.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          if (!userDoc.exists()) {
+             // Handle new user creation if needed
+             await setDoc(userDocRef, {
+               id: fbUser.uid,
+               name: fbUser.displayName,
+               email: fbUser.email,
+               role: preferredRole,
+               created_at: new Date().toISOString()
+             });
+          }
+        }
+      } catch (err) {
+        console.error('Redirect result error:', err);
+      }
+    };
+    handleRedirectResult();
+  }, []);
+
   // Google Sign-In with Firebase Auth respecting selected portal role
   const signInWithGoogle = async (preferredRole = 'STUDENT') => {
     try {
       localStorage.setItem('campusfix_selected_role', preferredRole);
-      const result = await signInWithPopup(auth, googleProvider);
-      const fbUser = result.user;
-
-      const userDocRef = doc(db, 'users', fbUser.uid);
-      const userSnap = await getDoc(userDocRef);
-
-      let profile;
-      if (userSnap.exists()) {
-        profile = userSnap.data();
-        profile.role = preferredRole;
-        await setDoc(userDocRef, { ...profile, role: preferredRole }, { merge: true });
-      } else {
-        profile = {
-          id: fbUser.uid,
-          uid: fbUser.uid,
-          name: fbUser.displayName || 'Campus Member',
-          email: fbUser.email,
-          role: preferredRole,
-          department:
-            preferredRole === 'ADMIN'
-              ? 'Campus Administration'
-              : preferredRole === 'STAFF'
-              ? 'Maintenance & Facilities'
-              : 'Student Department',
-          phone: fbUser.phoneNumber || '+91 98401 23456',
-          photoURL: fbUser.photoURL,
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, profile);
-      }
-
-      const sessionToken = `fb-${fbUser.uid}`;
-      localStorage.setItem('campusfix_token', sessionToken);
-      localStorage.setItem('campusfix_user', JSON.stringify(profile));
-      setToken(sessionToken);
-      setUser(profile);
-      return profile;
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       console.error('Google Sign-In failed:', err);
       throw err;
@@ -144,19 +137,16 @@ export const AuthProvider = ({ children }) => {
     setToken(data.token);
     setUser(data.user);
     try {
-      if (data?.user?.id) {
-        const userDocRef = doc(db, 'users', String(data.user.id));
+      if (data?.user?.id || data?.user?.uid) {
+        const userId = String(data.user.id || data.user.uid);
+        const userDocRef = doc(db, 'users', userId);
         await setDoc(userDocRef, {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role || 'STUDENT',
-          department: data.user.department || '',
+          ...data.user,
           lastLogin: new Date().toISOString(),
         }, { merge: true });
       }
-    } catch {
-      // Non-blocking firestore sync
+    } catch (e) {
+      console.warn('Firestore login sync notice:', e);
     }
     return data;
   };

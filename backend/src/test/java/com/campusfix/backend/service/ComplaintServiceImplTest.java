@@ -5,7 +5,6 @@ import com.campusfix.backend.dto.ComplaintResponse;
 import com.campusfix.backend.dto.StatusUpdateRequest;
 import com.campusfix.backend.entity.Complaint;
 import com.campusfix.backend.repository.ComplaintRepository;
-import com.campusfix.backend.service.impl.ComplaintServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
