@@ -242,9 +242,7 @@ export const AuthPage = ({ showToast }) => {
       {/* Background HTML5 Video */}
       <video
         src="https://videotourl.com/videos/1793713749379-671ad0a0-c664-44e3-aed7-741103a67a90.mp4"
-        autoPlay
-        loop
-        muted
+        preload="auto"
         playsInline
         style={{
           position: 'absolute',
