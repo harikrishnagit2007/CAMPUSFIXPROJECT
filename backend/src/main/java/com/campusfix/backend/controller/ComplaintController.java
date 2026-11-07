@@ -4,6 +4,7 @@ import com.campusfix.backend.dto.ComplaintRequest;
 import com.campusfix.backend.dto.ComplaintResponse;
 import com.campusfix.backend.dto.StatusUpdateRequest;
 import com.campusfix.backend.service.ComplaintService;
+import com.campusfix.backend.service.GeminiAiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -32,9 +33,11 @@ import java.util.Map;
 public class ComplaintController {
 
     private final ComplaintService complaintService;
+    private final GeminiAiService geminiAiService;
 
-    public ComplaintController(ComplaintService complaintService) {
+    public ComplaintController(ComplaintService complaintService, GeminiAiService geminiAiService) {
         this.complaintService = complaintService;
+        this.geminiAiService = geminiAiService;
     }
 
     /**
@@ -240,7 +243,7 @@ public class ComplaintController {
      * Image inspection triage classification
      */
     @Operation(summary = "Analyze image", description = "Computer vision triage endpoint.")
-    @PostMapping({"/analyze_image", "/analyze_image/"})
+    @PostMapping({"/analyze_image", "/analyze_image/", "/analyze-image", "/analyze-image/"})
     public ResponseEntity<Map<String, Object>> analyzeImage(@RequestBody(required = false) Map<String, Object> payload) {
         if (payload == null || !payload.containsKey("image") || payload.get("image") == null || payload.get("image").toString().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -248,10 +251,8 @@ public class ComplaintController {
             ));
         }
 
-        // Multimodal image understanding requires multimodal vision AI models (Gemini Vision)
-        // Never return hardcoded mock categories (Electrical/Plumbing/Fan/AC/Furniture)
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-            "error", "Multimodal vision AI model is serviced via the application server (/api/complaints/analyze_image/) which runs genuine visual inspection."
-        ));
+        String image = (String) payload.get("image");
+        Map<String, Object> result = geminiAiService.analyzeImage(image);
+        return ResponseEntity.ok(result);
     }
 }

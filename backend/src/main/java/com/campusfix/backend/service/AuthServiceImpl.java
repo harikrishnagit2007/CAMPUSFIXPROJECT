@@ -197,4 +197,43 @@ public class AuthServiceImpl implements AuthService {
         String sessionToken = tokenProvider.generateToken(saved);
         return new AuthResponse(sessionToken, UserResponse.fromEntity(saved), "Password successfully reset and session initiated");
     }
+
+    @Override
+    public AuthResponse googleLogin(Map<String, String> payload) {
+        String email = payload != null ? payload.get("email") : null;
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required for Google login");
+        }
+        String cleanEmail = email.trim().toLowerCase();
+        String name = payload.get("name");
+        if (name == null || name.trim().isEmpty()) {
+            name = cleanEmail.split("@")[0];
+        }
+        String preferredRole = payload.get("role");
+        if (preferredRole == null || preferredRole.trim().isEmpty()) {
+            preferredRole = "STUDENT";
+        }
+        preferredRole = preferredRole.trim().toUpperCase();
+        if (!preferredRole.equals("ADMIN") && !preferredRole.equals("STAFF") && !preferredRole.equals("STUDENT")) {
+            preferredRole = "STUDENT";
+        }
+
+        final String finalRole = preferredRole;
+        final String finalName = name;
+        User user = userRepository.findByEmail(cleanEmail)
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setEmail(cleanEmail);
+                    newUser.setUsername(cleanEmail.split("@")[0] + "_" + (int)(Math.random() * 1000));
+                    newUser.setName(finalName);
+                    newUser.setRole(finalRole);
+                    newUser.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+                    newUser.setDepartment(finalRole.equals("ADMIN") ? "Campus Administration" : (finalRole.equals("STAFF") ? "Maintenance & Facilities" : "Student Department"));
+                    newUser.setPhone(payload.get("phone") != null ? payload.get("phone") : "+91 98401 23456");
+                    return userRepository.save(newUser);
+                });
+
+        String token = tokenProvider.generateToken(user);
+        return new AuthResponse(token, UserResponse.fromEntity(user), "Google login successful");
+    }
 }

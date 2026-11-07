@@ -20,4 +20,6 @@ public interface AuthService {
     Map<String, Object> forgotPassword(String email);
 
     AuthResponse resetPassword(String email, String token, String newPassword);
+
+    AuthResponse googleLogin(Map<String, String> payload);
 }

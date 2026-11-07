@@ -15,7 +15,7 @@ import java.util.Map;
  * - AI Assistant Chatbot
  */
 @RestController
-@RequestMapping({"/api/v1/ai", "/api/ai"})
+@RequestMapping({"/api/v1/ai", "/api/ai", "/api/v1/chat", "/api/chat"})
 @CrossOrigin(origins = "*", allowedHeaders = "*", methods = {
     RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS
 })
@@ -39,7 +39,7 @@ public class AiController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping({"/chat", "/chat/"})
+    @PostMapping({"/chat", "/chat/", "", "/"})
     @Operation(summary = "Conversational AI assistant query")
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, Object> request) {
         List<Map<String, Object>> messages = (List<Map<String, Object>>) request.get("messages");

@@ -14,8 +14,6 @@ import {
 import { complaintsApi } from '../api/complaints';
 import { QRScannerModal } from './QRScannerModal';
 import { CameraCaptureModal } from './CameraCaptureModal';
-import { db, auth } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
 
 const CATEGORIES = [
   'Electrical',
@@ -325,26 +323,6 @@ export const ComplaintModal = ({
         const res = await complaintsApi.createComplaint(payload);
         if (res) {
           ticketId = res.complaint_id || res.id || ticketId;
-        }
-
-        // Direct write to Firestore for maximum reliability across all deployments
-        try {
-          await addDoc(collection(db, 'complaints'), {
-            complaint_id: ticketId,
-            title: payload.complaint_title,
-            category: payload.category,
-            location: payload.location,
-            description: payload.description,
-            priority: payload.priority,
-            status: 'Submitted',
-            image: payload.image || '',
-            userId: auth.currentUser?.uid || 'anonymous',
-            userEmail: auth.currentUser?.email || 'student@campusfix.edu',
-            createdAt: new Date().toISOString(),
-            source: 'Report Issue Form',
-          });
-        } catch (fsErr) {
-          console.warn('Firestore report write notice:', fsErr);
         }
 
         if (showToast) showToast(`Ticket ${ticketId} submitted & logged in database!`, 'success');

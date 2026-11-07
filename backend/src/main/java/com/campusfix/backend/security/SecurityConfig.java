@@ -49,6 +49,7 @@ public class SecurityConfig {
                 // Public authentication, health, and documentation endpoints
                 .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
                 .requestMatchers("/api/v1/health/**", "/api/health/**").permitAll()
+                .requestMatchers("/api/v1/ai/**", "/api/ai/**", "/api/v1/chat/**", "/api/chat/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Allow OPTIONS pre-flight checks
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

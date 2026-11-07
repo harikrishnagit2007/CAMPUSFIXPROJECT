@@ -243,6 +243,7 @@ export const AuthPage = ({ showToast }) => {
       style={{
         position: 'relative',
         minHeight: '100vh',
+        height: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -253,7 +254,7 @@ export const AuthPage = ({ showToast }) => {
       {/* Background HTML5 Video */}
       <video
         ref={videoRef}
-        src="https://videotourl.com/videos/1793713749379-671ad0a0-c664-44e3-aed7-741103a67a90.mp4"
+        src="https://assets.mixkit.co/videos/preview/mixkit-modern-university-building-and-campus-41223-large.mp4"
         autoPlay
         muted
         loop

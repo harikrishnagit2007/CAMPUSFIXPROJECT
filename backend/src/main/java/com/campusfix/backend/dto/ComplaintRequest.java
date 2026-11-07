@@ -56,7 +56,14 @@ public class ComplaintRequest {
     }
 
     public String getBuilding() {
-        return building;
+        if (building != null && !building.trim().isEmpty()) {
+            return building;
+        }
+        if (location != null && !location.trim().isEmpty()) {
+            String[] parts = location.split(",");
+            return parts[0].trim();
+        }
+        return "Campus Main Block";
     }
 
     public void setBuilding(String building) {

@@ -71,6 +71,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping({"/google", "/google/"})
+    public ResponseEntity<AuthResponse> googleLogin(@RequestBody Map<String, String> payload) {
+        AuthResponse response = authService.googleLogin(payload);
+        return ResponseEntity.ok(response);
+    }
+
     private String extractToken(String header) {
         if (header != null && !header.trim().isEmpty()) {
             String trimmed = header.trim();

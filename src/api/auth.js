@@ -34,4 +34,10 @@ export const authApi = {
       method: 'POST',
       body: { email, token, newPassword },
     }),
+
+  googleLogin: (payload) =>
+    apiClient('/auth/google/', {
+      method: 'POST',
+      body: payload,
+    }),
 };

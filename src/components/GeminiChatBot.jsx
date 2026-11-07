@@ -2,16 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { chatApi } from '../api/chat';
 import { complaintsApi } from '../api/complaints';
-import { auth, db, handleFirestoreError } from '../firebase';
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  getDocs,
-  writeBatch,
-} from 'firebase/firestore';
 import {
   MessageSquare,
   Send,
@@ -32,9 +22,7 @@ import {
 
 export const GeminiChatBot = ({ showToast }) => {
   const { user } = useAuth();
-  const fbCurrentUser = auth.currentUser;
-  const isFbAuthed = Boolean(fbCurrentUser);
-  const chatUserId = fbCurrentUser ? fbCurrentUser.uid : user ? String(user.id || user.uid || user.email || user.username || 'anonymous') : 'anonymous';
+  const chatUserId = user ? String(user.id || user.uid || user.email || user.username || 'user') : 'user';
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -134,45 +122,21 @@ export const GeminiChatBot = ({ showToast }) => {
     }
   };
 
-  // Subscribe to Firestore conversation history when Firebase Auth is active, or use local storage
+  // Load conversation history from local storage
   useEffect(() => {
     if (!user) return;
-
-    if (isFbAuthed && fbCurrentUser) {
-      const messagesRef = collection(db, 'chat_threads', fbCurrentUser.uid, 'messages');
-      const q = query(messagesRef, orderBy('timestamp', 'asc'));
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const loadedMsgs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setMessages(loadedMsgs);
-        },
-        (error) => {
-          try {
-            handleFirestoreError(error, 'get', `chat_threads/${fbCurrentUser.uid}/messages`);
-          } catch (err) {
-            console.warn('Firestore chat thread notice:', err);
-          }
-        }
-      );
-
-      return () => unsubscribe();
-    } else {
-      setMessages([]);
-      try {
-        const stored = localStorage.getItem(`campusfix_chat_${chatUserId}`);
-        if (stored) {
-          setMessages(JSON.parse(stored));
-        }
-      } catch (err) {
-        console.warn('Local chat storage error:', err);
+    try {
+      const stored = localStorage.getItem(`campusfix_chat_${chatUserId}`);
+      if (stored) {
+        setMessages(JSON.parse(stored));
+      } else {
+        setMessages([]);
       }
+    } catch (err) {
+      console.warn('Local chat storage error:', err);
+      setMessages([]);
     }
-  }, [user, isFbAuthed, fbCurrentUser, chatUserId]);
+  }, [user, chatUserId]);
 
   if (!user) return null;
 
@@ -211,31 +175,11 @@ export const GeminiChatBot = ({ showToast }) => {
       timestamp: new Date().toISOString(),
     };
 
-    if (isFbAuthed && fbCurrentUser) {
-      const messagesRef = collection(db, 'chat_threads', fbCurrentUser.uid, 'messages');
-      try {
-        await addDoc(messagesRef, {
-          userId: fbCurrentUser.uid,
-          role: 'user',
-          content: newMsg.content,
-          image: currentImg || '',
-          modelUsed: newMsg.modelUsed,
-          timestamp: newMsg.timestamp,
-        });
-      } catch (error) {
-        try {
-          handleFirestoreError(error, 'write', `chat_threads/${fbCurrentUser.uid}/messages`);
-        } catch (err) {
-          console.warn('Firestore chat sync error:', err);
-        }
-      }
-    } else {
-      setMessages((prev) => {
-        const updated = [...prev, newMsg];
-        localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updated.slice(-30)));
-        return updated;
-      });
-    }
+    setMessages((prev) => {
+      const updated = [...prev, newMsg];
+      localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updated.slice(-30)));
+      return updated;
+    });
 
     const lowerText = userText.toLowerCase();
     
@@ -361,35 +305,9 @@ export const GeminiChatBot = ({ showToast }) => {
         const res = await complaintsApi.createComplaint(payload);
         const ticketId = res.complaint_id || res.id || `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-        // Create Record directly in Firestore
-        let firestoreDocId = null;
-        try {
-          const firestoreRef = collection(db, 'complaints');
-          const docRes = await addDoc(firestoreRef, {
-            complaint_id: ticketId,
-            title: complaintTitle,
-            category,
-            building,
-            room,
-            location: `${building}, ${room}`,
-            description: userText,
-            priority,
-            status: 'Submitted',
-            image: currentImg || '',
-            studentId: user.id || user.uid || chatUserId,
-            studentName: user.name || 'Student User',
-            studentEmail: user.email || 'student@campusfix.edu',
-            createdAt: new Date().toISOString(),
-            source: 'AI Chat Agent',
-          });
-          firestoreDocId = docRes.id;
-        } catch (fsErr) {
-          console.warn('Firestore complaint doc creation notice:', fsErr);
-        }
-
-        agentReplyText = `🚀 AI Assistant Issue Submission Complete!\n\nI have automatically recognized your 'Submit Issue' intent and created a new complaint record in Firestore & system backend:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Title: ${complaintTitle}\n• Location: ${building}, ${room}\n• Priority: ${priority}\n• Status: Submitted (Dispatched to Maintenance Staff)\n• Firestore Record: ${firestoreDocId ? `Created (Doc ID: ${firestoreDocId.slice(0, 8)}...)` : 'Synced'}\n${currentImg ? '• Photo Evidence: Attached in payload\n' : ''}\nYour issue has been logged successfully. You can track live SLA progress on your dashboard!`;
+        agentReplyText = `🚀 AI Assistant Issue Submission Complete!\n\nI have automatically recognized your 'Submit Issue' intent and created a new complaint record in the system database:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Title: ${complaintTitle}\n• Location: ${building}, ${room}\n• Priority: ${priority}\n• Status: Submitted (Dispatched to Maintenance Staff)\n${currentImg ? '• Photo Evidence: Attached in payload\n' : ''}\nYour issue has been logged successfully in MySQL. You can track live SLA progress on your dashboard!`;
         modelUsedName = 'CampusFix AI Assistant (Submit Intent Auto-Submit)';
-        if (showToast) showToast(`Ticket ${ticketId} auto-submitted & logged in Firestore!`, 'success');
+        if (showToast) showToast(`Ticket ${ticketId} auto-submitted & logged in database!`, 'success');
       } catch (err) {
         console.warn('API auto-submit error:', err);
         agentReplyText = `I attempted to auto-submit your report via the AI agent, but encountered an error. Please try reporting via the '+ Report Issue' button above.`;
@@ -428,26 +346,11 @@ export const GeminiChatBot = ({ showToast }) => {
       timestamp: new Date().toISOString(),
     };
 
-    if (isFbAuthed && fbCurrentUser) {
-      const messagesRef = collection(db, 'chat_threads', fbCurrentUser.uid, 'messages');
-      try {
-        await addDoc(messagesRef, {
-          userId: fbCurrentUser.uid,
-          role: 'model',
-          content: agentReplyText,
-          modelUsed: modelUsedName,
-          timestamp: modelReply.timestamp,
-        });
-      } catch (err) {
-        console.warn('Firestore model reply error:', err);
-      }
-    } else {
-      setMessages((prev) => {
-        const updated = [...prev, modelReply];
-        localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updated.slice(-30)));
-        return updated;
-      });
-    }
+    setMessages((prev) => {
+      const updated = [...prev, modelReply];
+      localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updated.slice(-30)));
+      return updated;
+    });
 
     setLoading(false);
   };
@@ -457,30 +360,9 @@ export const GeminiChatBot = ({ showToast }) => {
       return;
     }
 
-    if (isFbAuthed && fbCurrentUser) {
-      try {
-        const messagesRef = collection(db, 'chat_threads', fbCurrentUser.uid, 'messages');
-        const snapshot = await getDocs(messagesRef);
-        const batch = writeBatch(db);
-
-        snapshot.docs.forEach((doc) => {
-          batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-        if (showToast) showToast('Chat history cleared.', 'success');
-      } catch (error) {
-        try {
-          handleFirestoreError(error, 'delete', `chat_threads/${fbCurrentUser.uid}/messages`);
-        } catch {
-          if (showToast) showToast('Failed to clear history from Firestore.', 'error');
-        }
-      }
-    } else {
-      localStorage.removeItem(`campusfix_chat_${chatUserId}`);
-      setMessages([]);
-      if (showToast) showToast('Chat history cleared.', 'success');
-    }
+    localStorage.removeItem(`campusfix_chat_${chatUserId}`);
+    setMessages([]);
+    if (showToast) showToast('Chat history cleared.', 'success');
   };
 
   return (
