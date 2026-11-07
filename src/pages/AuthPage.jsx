@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Wrench,
   ShieldCheck,
@@ -12,6 +12,17 @@ import { useAuth } from '../context/AuthContext';
 
 export const AuthPage = ({ showToast }) => {
   const { login, register, signInWithGoogle, forgotPassword, resetPassword } = useAuth();
+  
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 1.0;
+      videoRef.current.play().catch((err) => {
+        console.warn('Background video autoplay was restricted:', err);
+      });
+    }
+  }, []);
   
   // Selected Role Portal: 'STUDENT' | 'ADMIN' | 'STAFF'
   const [selectedPortal, setSelectedPortal] = useState('STUDENT');
@@ -241,19 +252,39 @@ export const AuthPage = ({ showToast }) => {
     >
       {/* Background HTML5 Video */}
       <video
+        ref={videoRef}
         src="https://videotourl.com/videos/1793713749379-671ad0a0-c664-44e3-aed7-741103a67a90.mp4"
-        preload="auto"
+        autoPlay
+        muted
+        loop
         playsInline
+        preload="auto"
+        onEnded={(e) => {
+          e.target.play().catch(() => {});
+        }}
         style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
           objectFit: 'cover',
           zIndex: 0,
         }}
       />
-      {/* Overlay removed as requested */}
+      {/* Crystal clear dark overlay for superior readability */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(10, 15, 30, 0.52)',
+          zIndex: 1,
+          pointerEvents: 'none',
+        }}
+      />
 
 
       {/* Main Content Card */}
