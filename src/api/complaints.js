@@ -1,164 +1,122 @@
-import { apiClient } from './client';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  getDocs, 
+  getDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  where, 
+  serverTimestamp, 
+  orderBy 
+} from 'firebase/firestore';
+
+const COLLECTION = 'complaints';
+
+const handleFirestoreError = (error, operationType, path) => {
+  console.error(`Firestore ${operationType} Error on ${path}:`, error);
+  throw new Error(JSON.stringify({
+    error: error instanceof Error ? error.message : String(error),
+    operationType,
+    path
+  }));
+};
 
 export const complaintsApi = {
-  // Read all or filtered complaints
-  getComplaints: async (params = {}) => {
+  getComplaints: async (userId, userRole, userEmail) => {
     try {
-      const query = new URLSearchParams();
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== '') {
-          query.append(k, v);
-        }
-      });
-      const qs = query.toString() ? `?${query.toString()}` : '';
-      const res = await apiClient(`/complaints/${qs}`, { method: 'GET' });
-      if (Array.isArray(res)) return res;
-    } catch (err) {
-      console.warn('API getComplaints notice:', err);
+      let q = collection(db, COLLECTION);
+      
+      // Filter for non-admin/staff
+      if (userRole !== 'ADMIN' && userRole !== 'STAFF' && userId) {
+        q = query(q, where('student_id', '==', userId));
+      } else {
+        q = query(q, orderBy('created_at', 'desc'));
+      }
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      handleFirestoreError(error, 'list', COLLECTION);
     }
-    const saved = localStorage.getItem('campusfix_client_complaints');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [];
   },
 
-  // Read single complaint
-  getComplaint: (id) => apiClient(`/complaints/${id}/`, { method: 'GET' }),
-
-  // Create complaint (handles JSON or FormData)
   createComplaint: async (payload) => {
-    return await apiClient('/complaints/', {
-      method: 'POST',
-      body: payload,
-    });
-  },
-
-  // Update complaint (student or admin)
-  updateComplaint: (id, data) =>
-    apiClient(`/complaints/${id}/`, {
-      method: 'PATCH',
-      body: data,
-    }),
-
-  // Delete complaint
-  deleteComplaint: (id) =>
-    apiClient(`/complaints/${id}/`, {
-      method: 'DELETE',
-    }),
-
-  // Dashboard analytics
-  getAnalytics: async () => {
     try {
-      const res = await apiClient('/complaints/analytics/', { method: 'GET' });
-      if (res && typeof res.total === 'number') return res;
-    } catch (err) {
-      console.warn('API analytics notice:', err);
+      const docRef = await addDoc(collection(db, COLLECTION), {
+        ...payload,
+        status: 'Submitted',
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+      return { id: docRef.id, ...payload, status: 'Submitted' };
+    } catch (error) {
+      handleFirestoreError(error, 'create', COLLECTION);
     }
-    return {
-      total: 12,
-      open: 5,
-      resolved: 7,
-      critical: 2,
-    };
   },
 
-  // Emergency safety alerts
+  updateStatus: async (complaintId, status, resolution_notes = '') => {
+    try {
+      const docRef = doc(db, COLLECTION, complaintId);
+      await updateDoc(docRef, {
+        status,
+        resolution_notes,
+        updated_at: serverTimestamp(),
+        ...(status === 'Resolved' ? { resolved_at: serverTimestamp() } : {})
+      });
+      return { success: true };
+    } catch (error) {
+      handleFirestoreError(error, 'update', `${COLLECTION}/${complaintId}`);
+    }
+  },
+
+  deleteComplaint: async (complaintId) => {
+    try {
+      await deleteDoc(doc(db, COLLECTION, complaintId));
+      return { success: true };
+    } catch (error) {
+      handleFirestoreError(error, 'delete', `${COLLECTION}/${complaintId}`);
+    }
+  },
+
+  getAnalytics: async (userId, userRole, userEmail) => {
+    try {
+      const q = collection(db, COLLECTION);
+      const querySnapshot = await getDocs(q);
+      const allComplaints = querySnapshot.docs.map(doc => doc.data());
+      
+      let complaints = allComplaints;
+      if (userRole !== 'ADMIN' && userRole !== 'STAFF' && userId) {
+        complaints = allComplaints.filter(c => c.student_id === userId);
+      }
+
+      return {
+        total: complaints.length,
+        submitted: complaints.filter(c => c.status === 'Submitted').length,
+        in_progress: complaints.filter(c => c.status === 'In Progress').length,
+        resolved: complaints.filter(c => c.status === 'Resolved').length,
+        critical: complaints.filter(c => c.priority === 'Critical').length
+      };
+    } catch (error) {
+      handleFirestoreError(error, 'list', COLLECTION);
+    }
+  },
   getEmergencyAlerts: async () => {
     try {
-      const res = await apiClient('/complaints/emergency_alerts/', { method: 'GET' });
-      if (Array.isArray(res)) return res;
-    } catch (err) {
-      console.warn('API emergency_alerts notice:', err);
+      const q = query(
+        collection(db, COLLECTION),
+        where('priority', '==', 'Critical'),
+        where('status', '!=', 'Resolved'),
+        orderBy('status'), // Necessary because of != filter
+        orderBy('created_at', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Emergency alerts error:', error);
+      return [];
     }
-    return [];
-  },
-
-  // Smart Feature: Advanced AI Duplicate check
-  checkDuplicate: async ({ category, location, title, description, exclude_id }) => {
-    try {
-      const query = new URLSearchParams({
-        category: category || '',
-        location: location || '',
-        title: title || '',
-        description: description || '',
-      });
-      if (exclude_id) query.append('exclude_id', exclude_id);
-      const res = await apiClient(`/complaints/check_duplicate/?${query.toString()}`, { method: 'GET' });
-      if (res) return res;
-    } catch (err) {
-      console.warn('API check_duplicate notice:', err);
-    }
-    return { found_duplicates: false, duplicates: [] };
-  },
-
-  // Smart Feature: Priority detection heuristic
-  detectPriority: async (title, description) => {
-    try {
-      const res = await apiClient('/complaints/detect_priority/', {
-        method: 'POST',
-        body: { title, description },
-      });
-      if (res && res.priority) return res;
-    } catch (err) {
-      console.warn('API detectPriority notice:', err);
-    }
-    const combined = `${title || ''} ${description || ''}`.toLowerCase();
-    const isCrit = combined.includes('spark') || combined.includes('fire') || combined.includes('hazard') || combined.includes('leak');
-    return { priority: isCrit ? 'Critical' : 'Medium' };
-  },
-
-  // AI-Powered Image Analysis with authentic multimodal vision AI model
-  analyzeImage: async (image) => {
-    if (!image || (typeof image === 'string' && image.trim().length === 0)) {
-      throw new Error('Please select or upload a valid image file first.');
-    }
-    return await apiClient('/complaints/analyze_image/', {
-      method: 'POST',
-      body: { image },
-    });
-  },
-
-  // Emergency Escalation Workflow
-  escalateEmergency: (complaintId, { reason, target_department } = {}) =>
-    apiClient(`/complaints/${complaintId}/escalate_emergency/`, {
-      method: 'POST',
-      body: { reason, target_department },
-    }),
-
-  // Link / Merge Duplicate Complaint
-  linkDuplicate: (complaintId, { duplicate_of_id, note } = {}) =>
-    apiClient(`/complaints/${complaintId}/link_duplicate/`, {
-      method: 'POST',
-      body: { duplicate_of_id, note },
-    }),
-
-  // Admin action: Assign staff
-  assignStaff: (complaintId, staffId) =>
-    apiClient(`/complaints/${complaintId}/assign_staff/`, {
-      method: 'PATCH',
-      body: { staff_id: staffId },
-    }),
-
-  // Admin / Staff action: Update status
-  updateStatus: (complaintId, status, resolution_notes = '') =>
-    apiClient(`/complaints/${complaintId}/update_status/`, {
-      method: 'PATCH',
-      body: { status, resolution_notes },
-    }),
-
-  // Student action: Verify resolution (Yes/No)
-  verifyResolution: (complaintId, { is_resolved, feedback, rating } = {}) =>
-    apiClient(`/complaints/${complaintId}/verify_resolution/`, {
-      method: 'POST',
-      body: { is_resolved, feedback, rating },
-    }),
-
-  // Smart Staff Assignment Recommendation
-  getRecommendedStaff: (complaintId) =>
-    apiClient(`/complaints/${complaintId}/recommended_staff/`, { method: 'GET' }),
-
-  // AI Maintenance Executive Summary
-  getAiSummary: () =>
-    apiClient('/analytics/ai_summary/', { method: 'GET' }),
+  }
 };

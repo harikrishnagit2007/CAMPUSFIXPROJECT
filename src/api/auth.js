@@ -1,10 +1,10 @@
 import { apiClient } from './client';
 
 export const authApi = {
-  login: (email, password) =>
+  login: (email, password, role) =>
     apiClient('/auth/login/', {
       method: 'POST',
-      body: { email, password },
+      body: { email, password, role },
     }),
 
   register: (userData) =>
@@ -18,9 +18,11 @@ export const authApi = {
       method: 'POST',
     }),
 
-  getCurrentUser: () =>
+  getCurrentUser: (options = {}) =>
     apiClient('/auth/me/', {
       method: 'GET',
+      silentError: true,
+      ...options,
     }),
 
   forgotPassword: (email) =>
@@ -35,9 +37,11 @@ export const authApi = {
       body: { email, token, newPassword },
     }),
 
-  googleLogin: (payload) =>
+  googleLogin: (payload, options = {}) =>
     apiClient('/auth/google/', {
       method: 'POST',
       body: payload,
+      silentError: true,
+      ...options,
     }),
 };

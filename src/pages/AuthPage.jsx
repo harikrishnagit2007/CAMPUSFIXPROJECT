@@ -13,14 +13,20 @@ import { useAuth } from '../context/AuthContext';
 export const AuthPage = ({ showToast }) => {
   const { login, register, signInWithGoogle, forgotPassword, resetPassword } = useAuth();
   
+  const BACKGROUND_VIDEO_URL = 'https://videotourl.com/videos/1794082003507-8cb50f37-be4e-4903-bcd1-fd42a3dcb519.mp4';
   const videoRef = useRef(null);
 
   useEffect(() => {
     if (videoRef.current) {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = true;
       videoRef.current.playbackRate = 1.0;
-      videoRef.current.play().catch((err) => {
-        console.warn('Background video autoplay was restricted:', err);
-      });
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Background video autoplay was restricted:', err);
+        });
+      }
     }
   }, []);
   
@@ -123,13 +129,24 @@ export const AuthPage = ({ showToast }) => {
       return;
     }
 
+    console.log('[AuthPage] Initiating login form submission:', {
+      portal: selectedPortal,
+      email: loginData.email.trim(),
+    });
+
     setLoading(true);
     try {
-      await login(loginData.email.trim(), loginData.password);
+      const res = await login(loginData.email.trim(), loginData.password, selectedPortal);
+      console.log('[AuthPage] Login succeeded:', res);
       if (showToast) {
         showToast(`Welcome back to ${selectedPortal} Dashboard!`, 'success');
       }
     } catch (err) {
+      console.error('[AuthPage] Login submission caught error:', {
+        status: err?.status,
+        message: err?.message,
+        data: err?.data,
+      });
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -243,18 +260,18 @@ export const AuthPage = ({ showToast }) => {
       style={{
         position: 'relative',
         minHeight: '100vh',
-        height: '100vh',
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
-        overflow: 'hidden',
+        padding: '24px 16px',
+        overflowY: 'auto',
       }}
     >
       {/* Background HTML5 Video */}
       <video
         ref={videoRef}
-        src="https://assets.mixkit.co/videos/preview/mixkit-modern-university-building-and-campus-41223-large.mp4"
+        src={BACKGROUND_VIDEO_URL}
         autoPlay
         muted
         loop
@@ -269,11 +286,19 @@ export const AuthPage = ({ showToast }) => {
           left: 0,
           width: '100vw',
           height: '100vh',
+          minWidth: '100%',
+          minHeight: '100%',
           objectFit: 'cover',
+          objectPosition: 'center center',
           zIndex: 0,
+          pointerEvents: 'none',
+          filter: 'contrast(1.05) saturate(1.1)',
         }}
-      />
-      {/* Crystal clear dark overlay for superior readability */}
+      >
+        <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
+        Your browser does not support HTML5 video background.
+      </video>
+      {/* Crystal clear dark subtle overlay for superior readability without obscuring video */}
       <div
         style={{
           position: 'fixed',
@@ -281,12 +306,11 @@ export const AuthPage = ({ showToast }) => {
           left: 0,
           width: '100vw',
           height: '100vh',
-          backgroundColor: 'rgba(10, 15, 30, 0.52)',
+          background: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%)',
           zIndex: 1,
           pointerEvents: 'none',
         }}
       />
-
 
       {/* Main Content Card */}
       <div style={{ width: '100%', maxWidth: '440px', position: 'relative', zIndex: 10 }}>
@@ -301,7 +325,7 @@ export const AuthPage = ({ showToast }) => {
         </div>
 
         {/* Portal Selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '20px', background: 'rgba(255, 255, 255, 0.1)', padding: '5px', borderRadius: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '20px', background: 'rgba(255, 255, 255, 0.08)', padding: '5px', borderRadius: '12px' }}>
           {['STUDENT', 'ADMIN', 'STAFF'].map((p) => (
             <button
               key={p}
@@ -310,8 +334,8 @@ export const AuthPage = ({ showToast }) => {
                 border: 'none',
                 padding: '8px',
                 borderRadius: '8px',
-                background: selectedPortal === p ? 'white' : 'transparent',
-                color: selectedPortal === p ? '#4f46e5' : 'white',
+                background: selectedPortal === p ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                color: 'white',
                 fontWeight: 700,
                 fontSize: '0.8rem',
                 cursor: 'pointer',
@@ -323,8 +347,19 @@ export const AuthPage = ({ showToast }) => {
         </div>
 
         {/* Auth Form Card */}
-        <div style={{ background: 'transparent', padding: '24px', borderRadius: '16px', color: 'white' }}>
-          <div style={{ fontWeight: 800, marginBottom: '16px', color: 'white' }}>{isLoginMode ? 'Sign In' : 'Register'}</div>
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.18)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
+            borderRadius: '20px',
+            padding: '28px 24px',
+            color: '#0f172a',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: '16px', color: '#0f172a', fontSize: '1.1rem' }}>{isLoginMode ? 'Sign In' : 'Register'}</div>
           
           {errorMsg && <div style={{ color: 'red', marginBottom: '10px', fontSize: '0.8rem' }}>{errorMsg}</div>}
 
@@ -364,19 +399,35 @@ export const AuthPage = ({ showToast }) => {
               <button
                 type="button"
                 className="btn btn-secondary"
+                disabled={loading}
                 onClick={handleGoogleSignIn}
                 style={{
                   width: '100%',
-                  padding: '10px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  padding: '11px 16px',
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255, 255, 255, 0.28)',
                   color: 'white',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
+                  borderRadius: '10px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   fontWeight: 600,
+                  fontSize: '0.92rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                Continue with Google
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
               </button>
             </form>
           ) : (

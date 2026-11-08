@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered campus member profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["STUDENT", "ADMIN", "STAFF"] },
+        "department": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Facility maintenance complaint ticket",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "complaintId": { "type": "string", "maxLength": 64 },
+        "complaintTitle": { "type": "string", "maxLength": 256 },
+        "category": { "type": "string", "maxLength": 64 },
+        "building": { "type": "string", "maxLength": 128 },
+        "room": { "type": "string", "maxLength": 64 },
+        "location": { "type": "string", "maxLength": 256 },
+        "description": { "type": "string", "maxLength": 2048 },
+        "priority": { "type": "string", "enum": ["Critical", "High", "Medium", "Low"] },
+        "status": { "type": "string", "enum": ["Submitted", "Under Review", "Assigned", "In Progress", "Resolved", "Rejected"] },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 128 },
+        "studentEmail": { "type": "string", "maxLength": 128 },
+        "assignedStaffId": { "type": "string", "maxLength": 128 },
+        "assignedStaffName": { "type": "string", "maxLength": 128 },
+        "image": { "type": "string", "maxLength": 5000000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["complaintTitle", "category", "location", "status"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Maintenance staff technician profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "department": { "type": "string", "maxLength": 128 },
+        "specialization": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "availability": { "type": "string", "enum": ["Available", "Busy", "Offline"] }
+      },
+      "required": ["name", "department", "email"]
+    },
+    "CampusLocation": {
+      "title": "CampusLocation",
+      "description": "Physical campus room and QR code location",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "building": { "type": "string", "maxLength": 128 },
+        "room": { "type": "string", "maxLength": 64 },
+        "floor": { "type": "string", "maxLength": 32 },
+        "type": { "type": "string", "maxLength": 64 },
+        "department": { "type": "string", "maxLength": 128 },
+        "qrCodeDataUrl": { "type": "string" }
+      },
+      "required": ["building", "room"]
+    },
+    "LostFoundItem": {
+      "title": "LostFoundItem",
+      "description": "Lost or found item report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "itemCode": { "type": "string", "maxLength": 64 },
+        "type": { "type": "string", "enum": ["LOST", "FOUND"] },
+        "itemName": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "building": { "type": "string", "maxLength": 128 },
+        "location": { "type": "string", "maxLength": 256 },
+        "date": { "type": "string" },
+        "approxTime": { "type": "string" },
+        "description": { "type": "string", "maxLength": 2048 },
+        "identifyingMarks": { "type": "string", "maxLength": 512 },
+        "holdingLocation": { "type": "string", "maxLength": 256 },
+        "status": { "type": "string", "enum": ["OPEN", "CLAIMED", "RETURNED", "CLOSED"] },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reporterName": { "type": "string", "maxLength": 128 },
+        "image": { "type": "string" }
+      },
+      "required": ["type", "itemName", "category", "location"]
+    },
+    "ItemClaim": {
+      "title": "ItemClaim",
+      "description": "Ownership claim for a found item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "claimCode": { "type": "string", "maxLength": 64 },
+        "itemId": { "type": "string", "maxLength": 128 },
+        "itemTitle": { "type": "string", "maxLength": 128 },
+        "claimantId": { "type": "string", "maxLength": 128 },
+        "claimantName": { "type": "string", "maxLength": 128 },
+        "claimantEmail": { "type": "string", "maxLength": 128 },
+        "claimantPhone": { "type": "string", "maxLength": 32 },
+        "ownershipProof": { "type": "string", "maxLength": 2048 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "HANDED_OVER"] }
+      },
+      "required": ["itemId", "claimantName", "ownershipProof"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Maintenance complaints collection"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Maintenance staff directory collection"
+    },
+    "/locations/{locationId}": {
+      "schema": "CampusLocation",
+      "description": "Campus QR locations collection"
+    },
+    "/lost_found/{itemId}": {
+      "schema": "LostFoundItem",
+      "description": "Lost and found items collection"
+    },
+    "/claims/{claimId}": {
+      "schema": "ItemClaim",
+      "description": "Item ownership claims collection"
+    }
+  }
+}

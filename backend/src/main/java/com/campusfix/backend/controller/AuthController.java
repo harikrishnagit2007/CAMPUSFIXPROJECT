@@ -28,8 +28,18 @@ public class AuthController {
 
     @PostMapping({"/login", "/login/"})
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        System.out.println("[AuthController] Received login request for identifier: " + request.getUsername());
+        try {
+            AuthResponse response = authService.login(request);
+            System.out.println("[AuthController] Login success for user: " + (response.getUser() != null ? response.getUser().getEmail() : "user"));
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            System.err.println("[AuthController] Login validation failed (400 Bad Request): " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("[AuthController] Internal Server Error (500) during login: " + e.getMessage());
+            throw e;
+        }
     }
 
     @PostMapping({"/register", "/register/"})

@@ -10,7 +10,10 @@ import {
   Bot,
   Check,
   Camera,
+  Mic,
+  MicOff,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { complaintsApi } from '../api/complaints';
 import { QRScannerModal } from './QRScannerModal';
 import { CameraCaptureModal } from './CameraCaptureModal';
@@ -37,7 +40,10 @@ export const ComplaintModal = ({
   onSuccess,
   showToast,
 }) => {
+  const { user } = useAuth();
   const isEdit = Boolean(complaint);
+  const [isDictating, setIsDictating] = useState(false);
+  const dictationRef = useRef(null);
 
   const [formData, setFormData] = useState({
     complaint_title: '',
@@ -297,12 +303,89 @@ export const ComplaintModal = ({
     return true;
   };
 
+  const toggleDescriptionDictation = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      if (showToast) showToast('Speech recognition is not supported in this browser.', 'warning');
+      return;
+    }
+
+    if (isDictating) {
+      if (dictationRef.current) {
+        try {
+          dictationRef.current.stop();
+        } catch {}
+        dictationRef.current = null;
+      }
+      setIsDictating(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-IN'; // Optimized for Indian English and regional accents
+
+      const initialDesc = formData.description ? formData.description.trim() + ' ' : '';
+      let accumulatedFinal = initialDesc;
+
+      recognition.onstart = () => {
+        setIsDictating(true);
+        if (showToast) showToast('🎤 Listening... Speak description clearly now.', 'info');
+      };
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            accumulatedFinal += event.results[i][0].transcript + ' ';
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        const combined = (accumulatedFinal + interim).trim();
+        if (combined) {
+          setFormData((prev) => ({
+            ...prev,
+            description: combined,
+          }));
+        }
+      };
+
+      recognition.onerror = (err) => {
+        console.warn('Dictation notice:', err.error);
+        setIsDictating(false);
+        dictationRef.current = null;
+        if (err.error === 'not-allowed') {
+          if (showToast) showToast('Microphone permission blocked. Please enable mic access.', 'error');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsDictating(false);
+        dictationRef.current = null;
+      };
+
+      dictationRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Dictation start error:', err);
+      setIsDictating(false);
+      dictationRef.current = null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     setLoading(true);
     try {
+      const studentEmail = (user?.email || '').toLowerCase();
+      const studentId = user?.uid || user?.id || 'usr_student';
+      const studentName = user?.name || 'Campus Student';
+
       const payload = {
         complaint_title: formData.complaint_title.trim(),
         description: formData.description.trim(),
@@ -312,19 +395,29 @@ export const ComplaintModal = ({
         priority: formData.priority,
         image: imageBase64 || imagePreview || null,
         ai_analysis: aiAnalysis || null,
+        student_id: studentId,
+        studentId: studentId,
+        student_email: studentEmail,
+        student_name: studentName,
+        student_details: {
+          name: studentName,
+          email: studentEmail,
+          department: user?.department || 'Student Facilities',
+        },
       };
 
       let ticketId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
 
       if (isEdit) {
         await complaintsApi.updateComplaint(complaint.id, payload);
+        window.dispatchEvent(new CustomEvent('complaintUpdated', { detail: { id: complaint.id, ...payload } }));
         if (showToast) showToast('Complaint updated successfully.', 'success');
       } else {
         const res = await complaintsApi.createComplaint(payload);
         if (res) {
           ticketId = res.complaint_id || res.id || ticketId;
         }
-
+        window.dispatchEvent(new CustomEvent('complaintCreated', { detail: res || { ...payload, id: ticketId } }));
         if (showToast) showToast(`Ticket ${ticketId} submitted & logged in database!`, 'success');
       }
 
@@ -612,9 +705,43 @@ export const ComplaintModal = ({
 
             {/* Detailed Description */}
             <div className="form-group">
-              <label className="form-label">
-                Detailed Description <span className="required">*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>
+                  Detailed Description <span className="required">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={toggleDescriptionDictation}
+                  style={{
+                    background: isDictating ? '#fee2e2' : '#f1f5f9',
+                    border: '1px solid',
+                    borderColor: isDictating ? '#ef4444' : '#cbd5e1',
+                    borderRadius: '6px',
+                    padding: '3px 8px',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    color: isDictating ? '#dc2626' : '#475569',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title={isDictating ? "Stop recording" : "Dictate description by voice"}
+                >
+                  {isDictating ? (
+                    <>
+                      <MicOff size={13} className="text-red-600 animate-pulse" />
+                      <span>Listening... (Tap to stop)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={13} />
+                      <span>Voice Dictation</span>
+                    </>
+                  )}
+                </button>
+              </div>
               <textarea
                 name="description"
                 className="form-control"

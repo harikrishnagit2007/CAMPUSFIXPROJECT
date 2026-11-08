@@ -9,7 +9,7 @@ const rawBase = (typeof import.meta !== 'undefined' && import.meta.env && import
   : '/api';
 const BASE_URL = rawBase.replace(/\/+$/, '');
 
-export async function apiClient(endpoint, { body, ...customConfig } = {}) {
+export async function apiClient(endpoint, { body, silentError = false, ...customConfig } = {}) {
   const token = localStorage.getItem('campusfix_token');
   const storedUserJson = localStorage.getItem('campusfix_user');
   let storedUser = null;
@@ -49,24 +49,46 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   const url = `${BASE_URL}/${cleanEndpoint}`;
 
+  if (!silentError) {
+    console.log(`[API Request] ${customConfig.method || 'GET'} /${cleanEndpoint}`);
+  }
+
   let response;
   try {
     response = await fetch(url, config);
   } catch (err) {
+    if (!silentError) {
+      console.error(`[API Network Error] Request to /${cleanEndpoint} failed:`, err);
+    }
     throw new Error('Network connection failure. Please check if the backend server is running.');
   }
 
-  // Parse JSON or return empty on 204
-  let data;
+  // Parse JSON or text on failure
+  let data = null;
+  let textBody = '';
   try {
-    data = await response.json();
+    textBody = await response.text();
+    data = JSON.parse(textBody);
   } catch {
     data = null;
   }
 
   if (!response.ok) {
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      data: data,
+      rawBody: textBody ? textBody.slice(0, 300) : null,
+    };
+
+    if (silentError) {
+      console.warn(`[API Response Notice] Status ${response.status} for /${cleanEndpoint}`);
+    } else {
+      console.error(`[API Error Response] Status ${response.status} (${response.statusText || 'HTTP Error'}) for /${cleanEndpoint}:`, errorDetails);
+    }
+
     // Extract meaningful error messages
-    let errorMsg = 'An unexpected error occurred.';
+    let errorMsg = `Server Error (${response.status})`;
     if (data) {
       if (typeof data === 'string') {
         errorMsg = data;
@@ -85,7 +107,19 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
         }
         if (messages.length) errorMsg = messages.join(' | ');
       }
+    } else if (textBody && textBody.trim()) {
+      if (textBody.includes('<html') || textBody.includes('<!DOCTYPE') || textBody.includes('<head>')) {
+        // Extract title if available from HTML
+        const titleMatch = textBody.match(/<title>(.*?)<\/title>/i);
+        const titleText = titleMatch ? titleMatch[1].trim() : `HTTP ${response.status} Server Error`;
+        errorMsg = `Server Error (${response.status}): ${titleText}. Please verify the Spring Boot backend server state.`;
+      } else {
+        errorMsg = textBody.length > 200 ? textBody.slice(0, 200) + '...' : textBody;
+      }
+    } else {
+      errorMsg = `Server returned status ${response.status} (${response.statusText || 'Error'})`;
     }
+
     const error = new Error(errorMsg);
     error.status = response.status;
     error.data = data;

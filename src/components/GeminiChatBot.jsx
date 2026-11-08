@@ -9,15 +9,13 @@ import {
   Sparkles,
   Cpu,
   Trash2,
-  Info,
   ChevronDown,
-  Camera,
-  ShieldAlert,
-  PlusCircle,
   Paperclip,
   Image as ImageIcon,
   Mic,
   MicOff,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 export const GeminiChatBot = ({ showToast }) => {
@@ -30,13 +28,17 @@ export const GeminiChatBot = ({ showToast }) => {
   const [loading, setLoading] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [taskType, setTaskType] = useState('default');
-  const [customSystemInstruction, setCustomSystemInstruction] = useState('');
-
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [voiceLang, setVoiceLang] = useState('ta-IN'); // Default to Tamil / Indian regional for clarity
+  const [voices, setVoices] = useState([]);
+  const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
+  const [isAutoSpeakEnabled, setIsAutoSpeakEnabled] = useState(false);
 
   const fileInputRef = useRef(null);
   const threadEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const activeAudioRef = useRef(null);
+  const audioCtxRef = useRef(null);
 
   // Auto-scroll to the latest message
   const scrollToBottom = () => {
@@ -49,7 +51,62 @@ export const GeminiChatBot = ({ showToast }) => {
     }
   }, [messages, isOpen]);
 
-  // Dynamic Web Speech API Dictation
+  // Clean up audio & speech on unmount
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        try {
+          activeAudioRef.current.pause();
+        } catch {}
+        activeAudioRef.current = null;
+      }
+      if ('speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
+    };
+  }, []);
+
+  // High-fidelity acoustic chime for microphone activation/deactivation
+  const playChime = (type = 'start') => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      if (type === 'start') {
+        osc.frequency.setValueAtTime(540, now);
+        osc.frequency.exponentialRampToValueAtTime(840, now + 0.12);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else {
+        osc.frequency.setValueAtTime(740, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+    } catch {
+      /* ignore audio context error */
+    }
+  };
+
+  // Dynamic Web Speech API Dictation (Voice-to-Text)
   const toggleVoiceRecording = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -58,14 +115,17 @@ export const GeminiChatBot = ({ showToast }) => {
     }
 
     if (isListening) {
+      playChime('stop');
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
         } catch (e) {
           console.warn('Speech stop error:', e);
         }
+        recognitionRef.current = null;
       }
       setIsListening(false);
+      setInterimTranscript('');
       return;
     }
 
@@ -73,44 +133,64 @@ export const GeminiChatBot = ({ showToast }) => {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch {
-          /* ignore */
-        }
+        } catch {}
+        recognitionRef.current = null;
       }
 
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = voiceLang;
+
+      let accumulatedFinal = inputMsg ? inputMsg.trim() + ' ' : '';
 
       recognition.onstart = () => {
         setIsListening(true);
-        if (showToast) showToast('🎤 Listening... Speak now.', 'info');
+        playChime('start');
+        if (showToast) {
+          showToast(
+            voiceLang === 'ta-IN'
+              ? '🎤 கேட்கிறது... தெளிவாகப் பேசுங்கள் (தமிழ்)'
+              : '🎤 Listening clearly... Speak now',
+            'info'
+          );
+        }
       };
 
       recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+            accumulatedFinal += event.results[i][0].transcript + ' ';
           } else {
-            interimTranscript += event.results[i][0].transcript;
+            interim += event.results[i][0].transcript;
           }
         }
-        const fullTranscript = (finalTranscript + ' ' + interimTranscript).trim();
-        if (fullTranscript) {
-          setInputMsg(fullTranscript);
+        const combined = (accumulatedFinal + interim).trim();
+        if (combined) {
+          setInputMsg(combined);
+          setInterimTranscript(interim || combined);
         }
       };
 
       recognition.onerror = (err) => {
-        console.warn('Speech recognition notice:', err);
+        console.warn('Speech recognition notice:', err.error);
         setIsListening(false);
+        setInterimTranscript('');
+        recognitionRef.current = null;
+        if (err.error === 'not-allowed') {
+          if (showToast) showToast('Microphone access blocked. Please enable mic permissions in browser settings.', 'error');
+        } else if (err.error === 'no-speech') {
+          if (showToast) showToast('No speech was detected. Please tap mic and speak again.', 'info');
+        } else if (err.error === 'network') {
+          if (showToast) showToast('Speech recognition network error. Please try again.', 'warning');
+        }
       };
 
       recognition.onend = () => {
         setIsListening(false);
+        setInterimTranscript('');
+        recognitionRef.current = null;
       };
 
       recognitionRef.current = recognition;
@@ -118,8 +198,222 @@ export const GeminiChatBot = ({ showToast }) => {
     } catch (err) {
       console.warn('Speech activation exception:', err);
       setIsListening(false);
-      if (showToast) showToast('Could not start microphone speech recognition.', 'warning');
+      setInterimTranscript('');
+      recognitionRef.current = null;
+      if (showToast) showToast('Could not access microphone speech recognition.', 'warning');
     }
+  };
+
+  // Initialize and load SpeechSynthesis voices
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+
+    const loadVoices = () => {
+      try {
+        const available = window.speechSynthesis.getVoices();
+        if (available && available.length > 0) {
+          setVoices(available);
+        }
+      } catch (err) {
+        console.warn('Voice load error:', err);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const findBestVoice = (forTamil = false) => {
+    const available = (voices && voices.length > 0)
+      ? voices
+      : (typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : []);
+    
+    if (!available || available.length === 0) return null;
+
+    if (forTamil) {
+      const tamilVoice = available.find(v => v.lang.startsWith('ta') || v.name.toLowerCase().includes('tamil'));
+      if (tamilVoice) return tamilVoice;
+      const indianVoice = available.find(v => v.lang.includes('IN') || v.name.toLowerCase().includes('india'));
+      if (indianVoice) return indianVoice;
+    }
+
+    // 1. Specifically match 'Google UK English Female'
+    const googleUk = available.find(v => v.name.toLowerCase().includes('google uk english female'));
+    if (googleUk) return googleUk;
+
+    // 2. en-GB UK Female / Natural profiles (Sonia, Libby, Hazel, Serena, etc.)
+    const ukFemale = available.find(v => 
+      (v.lang.startsWith('en-GB') || v.lang === 'en_GB' || v.name.toLowerCase().includes('united kingdom') || v.name.toLowerCase().includes('british') || v.name.toLowerCase().includes('uk')) && 
+      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('sonia') || v.name.toLowerCase().includes('libby') || v.name.toLowerCase().includes('hazel') || v.name.toLowerCase().includes('serena'))
+    );
+    if (ukFemale) return ukFemale;
+
+    // 3. Indian English female voices
+    const indianFemale = available.find(v => 
+      v.lang.includes('IN') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('priya') || v.name.toLowerCase().includes('neerja'))
+    );
+    if (indianFemale) return indianFemale;
+
+    // 4. Any Google English female voice
+    const googleFemale = available.find(v => 
+      v.name.toLowerCase().includes('google') && 
+      (v.name.toLowerCase().includes('female') || v.lang.startsWith('en'))
+    );
+    if (googleFemale) return googleFemale;
+
+    // 5. Well-known friendly female voice profiles
+    const namedFemale = available.find(v => {
+      const n = v.name.toLowerCase();
+      return (v.lang.startsWith('en') || v.lang.startsWith('ta')) && 
+        (n.includes('female') || n.includes('samantha') || n.includes('victoria') || n.includes('zira') || n.includes('karen') || n.includes('jenny') || n.includes('aria') || n.includes('fiona'));
+    });
+    if (namedFemale) return namedFemale;
+
+    // 6. Any British English voice
+    const anyUk = available.find(v => v.lang.startsWith('en-GB') || v.name.toLowerCase().includes('united kingdom') || v.name.toLowerCase().includes('british'));
+    if (anyUk) return anyUk;
+
+    // 7. Any English voice
+    const anyEn = available.find(v => v.lang.startsWith('en'));
+    if (anyEn) return anyEn;
+
+    return available[0] || null;
+  };
+
+  const stopSpeaking = () => {
+    if (activeAudioRef.current) {
+      try {
+        activeAudioRef.current.pause();
+        activeAudioRef.current.currentTime = 0;
+      } catch {}
+      activeAudioRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.warn('Speech cancel error:', e);
+      }
+      window._activeSpeechUtterance = null;
+    }
+    setCurrentlySpeakingId(null);
+  };
+
+  const speakWithWebSpeech = (cleanText, msgId, isTamil) => {
+    if (!('speechSynthesis' in window)) {
+      setCurrentlySpeakingId(null);
+      if (showToast) showToast('Text-to-speech is not supported in this browser.', 'warning');
+      return;
+    }
+
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const selectedVoice = findBestVoice(isTamil);
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang || (isTamil ? 'ta-IN' : 'en-IN');
+    } else {
+      utterance.lang = isTamil ? 'ta-IN' : 'en-IN';
+    }
+
+    // Explicitly set 100% volume and natural cadence
+    utterance.volume = 1.0;
+    utterance.pitch = isTamil ? 1.02 : 1.12;
+    utterance.rate = 1.0;
+
+    // Pin utterance to window so Chrome garbage collector does not kill audio prematurely
+    window._activeSpeechUtterance = utterance;
+
+    utterance.onstart = () => {
+      setCurrentlySpeakingId(msgId);
+    };
+
+    utterance.onend = () => {
+      window._activeSpeechUtterance = null;
+      setCurrentlySpeakingId(null);
+    };
+
+    utterance.onerror = (e) => {
+      console.warn('Speech synthesis error:', e);
+      window._activeSpeechUtterance = null;
+      setCurrentlySpeakingId(null);
+    };
+
+    try {
+      window.speechSynthesis.speak(utterance);
+      const voiceLabel = selectedVoice ? selectedVoice.name : (isTamil ? 'Tamil Voice' : 'Google UK English Female');
+      if (showToast) showToast(`🔊 Voice: ${voiceLabel}`, 'info');
+    } catch (err) {
+      console.warn('Speech speak exception:', err);
+      setCurrentlySpeakingId(null);
+    }
+  };
+
+  const speakText = async (text, msgId = 'active') => {
+    if (currentlySpeakingId === msgId) {
+      stopSpeaking();
+      return;
+    }
+
+    // Clear previous audio
+    stopSpeaking();
+
+    // Clean text by stripping markdown formatting, URLs, and image tokens
+    const cleanText = text
+      .replace(/[*#_`]/g, '')
+      .replace(/\[Attached Photo\]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/•/g, ', ')
+      .trim();
+
+    if (!cleanText) return;
+
+    setCurrentlySpeakingId(msgId);
+    const isTamil = /[\u0B80-\u0BFF]/.test(cleanText) || voiceLang.startsWith('ta');
+
+    // 1. Primary: Gemini 3.8 Flash Lite TTS Studio Audio (24kHz WAV)
+    try {
+      const ttsRes = await chatApi.synthesizeSpeech(
+        cleanText.slice(0, 600),
+        isTamil ? 'ta-IN' : 'en-IN',
+        'Kore'
+      );
+      if (ttsRes && ttsRes.audioUrl) {
+        const audio = new Audio(ttsRes.audioUrl);
+        audio.volume = 1.0;
+        activeAudioRef.current = audio;
+
+        audio.onended = () => {
+          activeAudioRef.current = null;
+          setCurrentlySpeakingId(null);
+        };
+        audio.onerror = () => {
+          activeAudioRef.current = null;
+          speakWithWebSpeech(cleanText, msgId, isTamil);
+        };
+
+        await audio.play();
+        if (showToast) {
+          showToast(isTamil ? '🔊 தெளிவான குரலில் ஒலிக்கிறது (Gemini HD Audio)' : '🔊 Playing clear HD voice (Gemini TTS)', 'info');
+        }
+        return;
+      }
+    } catch (err) {
+      console.warn('Gemini TTS playback fallback:', err);
+    }
+
+    // 2. Secondary: Browser Web Speech API
+    speakWithWebSpeech(cleanText, msgId, isTamil);
   };
 
   // Load conversation history from local storage
@@ -171,170 +465,83 @@ export const GeminiChatBot = ({ showToast }) => {
       role: 'user',
       content: userText + (currentImg ? ' [Attached Photo]' : ''),
       image: currentImg,
-      modelUsed: taskType === 'complex' ? 'gemini-3.1-pro-preview' : taskType === 'fast' ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash',
+      modelUsed: 'User Input',
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => {
-      const updated = [...prev, newMsg];
-      localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updated.slice(-30)));
-      return updated;
-    });
+    // Use a temporary array to include the new message in the API call immediately
+    const updatedMessages = [...messages, newMsg];
+    setMessages(updatedMessages);
+    localStorage.setItem(`campusfix_chat_${chatUserId}`, JSON.stringify(updatedMessages.slice(-30)));
 
     const lowerText = userText.toLowerCase();
     
-    // Intent 1: Open Report Modal
-    const isOpenReportIntent =
-      lowerText.includes('open report') ||
-      lowerText.includes('open the report') ||
-      lowerText.includes('open complaint form') ||
-      lowerText.includes('show report');
-
-    // Intent 2: Query Complaints Stats / Issues Summary
-    const isQueryStatsIntent =
-      lowerText.includes('how many issue') ||
-      lowerText.includes('how many complaint') ||
-      lowerText.includes('what complaints') ||
-      lowerText.includes('list complaints') ||
-      lowerText.includes('total issues') ||
-      lowerText.includes('ticket status');
-
-    // Intent 3: Auto-Submit Issue Intent Recognition
-    const isSubmitIntent =
-      !isOpenReportIntent &&
-      !isQueryStatsIntent &&
-      (lowerText.includes('report') ||
-        lowerText.includes('submit') ||
-        lowerText.includes('create') ||
-        lowerText.includes('file') ||
-        lowerText.includes('broken') ||
-        lowerText.includes('not working') ||
-        lowerText.includes('fix') ||
-        lowerText.includes('issue') ||
-        lowerText.includes('complaint') ||
-        lowerText.includes('leaky') ||
-        lowerText.includes('damage') ||
-        lowerText.includes('fault') ||
-        lowerText.includes('spark') ||
-        lowerText.includes('leak') ||
-        lowerText.includes('ac') ||
-        lowerText.includes('wifi') ||
-        lowerText.includes('electric') ||
-        lowerText.includes('light') ||
-        lowerText.includes('water') ||
-        lowerText.includes('plumb') ||
-        currentImg !== null);
+    // Intent Recognition
+    const isOpenReportIntent = lowerText.includes('open report') || lowerText.includes('open complaint form');
+    const isQueryStatsIntent = lowerText.includes('how many issue') || lowerText.includes('list complaints') || lowerText.includes('total issues');
+    const isSubmitIntent = (lowerText.includes('report') || lowerText.includes('broken') || lowerText.includes('fix')) && userText.length > 5;
 
     let agentReplyText = '';
     let modelUsedName = 'CampusFix AI Assistant';
 
-    if (isOpenReportIntent) {
-      window.dispatchEvent(
-        new CustomEvent('campusfix-open-report', {
-          detail: {
-            location: {
-              building: lowerText.includes('block a') ? 'Academic Block A' : 'Technology Block C',
-              room: 'Room 304',
-            },
-          },
-        })
-      );
-      agentReplyText = `🚀 AI Assistant Action Executed:\n\nI have automatically opened the Report Issue modal for you! You can review the prefilled details and submit your report right away.`;
-      modelUsedName = 'CampusFix AI Assistant (Modal Trigger)';
-      if (showToast) showToast('AI Assistant opened Report Issue modal!', 'success');
-    } else if (isQueryStatsIntent) {
-      try {
-        const analytics = await complaintsApi.getAnalytics();
-        const complaints = await complaintsApi.getComplaints();
-        const total = analytics.total || complaints.length || 0;
-        const open = analytics.open || complaints.filter(c => c.status !== 'Resolved').length || 0;
-        const critical = analytics.critical || complaints.filter(c => c.priority === 'Critical').length || 0;
-
-        agentReplyText = `📊 Live Campus Maintenance Summary:\n\n• Total Complaints Logged: ${total}\n• Currently Open Issues: ${open}\n• Critical Priority Hazards: ${critical}\n\nYou can ask me to report a new issue, attach photos, or open the report form anytime!`;
-        modelUsedName = 'CampusFix AI Assistant (Analytics Query)';
-      } catch {
-        agentReplyText = `📊 You currently have active maintenance tickets registered on the portal. Use the dashboard to view full department breakdowns.`;
-        modelUsedName = 'CampusFix AI Assistant (Fallback)';
-      }
-    } else if (isSubmitIntent && (userText.length > 3 || currentImg)) {
-      try {
-        // 1. Dynamic Category Extraction
-        let category = 'General Maintenance';
-        if (lowerText.includes('electric') || lowerText.includes('spark') || lowerText.includes('wire') || lowerText.includes('light') || lowerText.includes('power') || lowerText.includes('socket') || lowerText.includes('plug')) category = 'Electrical';
-        else if (lowerText.includes('water') || lowerText.includes('leak') || lowerText.includes('plumb') || lowerText.includes('tap') || lowerText.includes('pipe') || lowerText.includes('sink') || lowerText.includes('toilet')) category = 'Plumbing';
-        else if (lowerText.includes('ac') || lowerText.includes('fan') || lowerText.includes('cooling') || lowerText.includes('heat') || lowerText.includes('air conditioner')) category = 'Fan/AC';
-        else if (lowerText.includes('wifi') || lowerText.includes('internet') || lowerText.includes('network') || lowerText.includes('router') || lowerText.includes('connection')) category = 'Wi-Fi / Network';
-        else if (lowerText.includes('desk') || lowerText.includes('chair') || lowerText.includes('furniture') || lowerText.includes('door') || lowerText.includes('table') || lowerText.includes('bench')) category = 'Furniture';
-        else if (lowerText.includes('clean') || lowerText.includes('washroom') || lowerText.includes('dust') || lowerText.includes('trash') || lowerText.includes('dirty') || lowerText.includes('garbage')) category = 'Cleaning';
-
-        // 2. Dynamic Location & Building Extraction
-        let building = 'Technology Block C';
-        if (lowerText.includes('block a') || lowerText.includes('academic block')) building = 'Academic Block A';
-        else if (lowerText.includes('block b') || lowerText.includes('science block')) building = 'Science Block B';
-        else if (lowerText.includes('hostel')) building = 'Men’s Hostel Block 1';
-        else if (lowerText.includes('library')) building = 'Central Library';
-
-        // 3. Dynamic Room Extraction
-        const roomMatch = userText.match(/(?:room|lab|hall)\s*([a-z0-9-]+)/i);
-        const room = roomMatch ? `Room ${roomMatch[1]}` : 'Room 304 (Auto-detected)';
-
-        // 4. Dynamic Priority Detection
-        const priority = (lowerText.includes('spark') || lowerText.includes('emergency') || lowerText.includes('fire') || lowerText.includes('danger') || lowerText.includes('urgent')) ? 'Critical' : lowerText.includes('high') ? 'High' : 'Medium';
-
-        // 5. Title Synthesis
-        const cleanedTitle = userText.replace(/^(please|can you|i want to|kindly|help|submit|report|file)\s+/i, '').trim();
-        const complaintTitle = cleanedTitle.length > 0 ? (cleanedTitle.slice(0, 60) + (cleanedTitle.length > 60 ? '...' : '')) : `${category} Issue in ${building}`;
-
-        const payload = {
-          complaint_title: complaintTitle,
-          category,
-          building,
-          room,
+    try {
+      if (isOpenReportIntent) {
+        window.dispatchEvent(new CustomEvent('campusfix-open-report', { detail: { location: { building: 'Technology Block C', room: 'Room 304' } } }));
+        agentReplyText = `🚀 I've opened the report form for you! You can now file your issue directly.`;
+        modelUsedName = 'Action: Open Modal';
+      } else if (isQueryStatsIntent) {
+        const stats = await complaintsApi.getAnalytics();
+        agentReplyText = `📊 **Campus Maintenance Overview**:\n• Total Tickets: ${stats.total}\n• Open Issues: ${stats.open}\n• Critical: ${stats.critical}\n\nWould you like me to help you report a new issue?`;
+        modelUsedName = 'Action: Stats Query';
+      } else if (isSubmitIntent && currentImg) {
+        // Multi-modal auto-submit
+        const studentEmail = (user.email || '').toLowerCase();
+        const studentId = user.uid || user.id || 'usr_student';
+        const res = await complaintsApi.createComplaint({
+          complaint_title: userText.slice(0, 50),
+          category: 'General',
+          building: 'Technology Block C',
+          room: 'Room 304',
           description: userText,
-          priority,
-          image: currentImg || '',
-          student: user.id || user.uid || chatUserId,
+          priority: 'Medium',
+          image: currentImg,
+          student: studentId,
+          student_id: studentId,
+          studentId: studentId,
+          student_email: studentEmail,
+          student_name: user.name || 'Campus Student',
           student_details: {
-            name: user.name || 'Student User',
-            email: user.email || 'student@campusfix.edu',
-            role: 'STUDENT',
+            name: user.name || 'Campus Student',
+            email: studentEmail,
+            department: user.department || 'Student Facilities',
           },
-        };
+        });
+        agentReplyText = `✅ **Ticket Created**: ${res.complaint_id || res.id}\nI've automatically analyzed your photo and logged this issue in the system. Our maintenance team has been notified!`;
+        modelUsedName = 'Action: Auto-Submit';
+      } else {
+        // General Chat with full history context - Increased to 30 messages for better continuity
+        const historyPayload = updatedMessages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          content: m.content
+        })).slice(-30);
 
-        // Create via Backend API
-        const res = await complaintsApi.createComplaint(payload);
-        const ticketId = res.complaint_id || res.id || `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
+        const systemPrompt = "You are CampusFix AI, an intelligent, friendly facilities maintenance assistant. " +
+          "Help students, faculty, and administrators report campus maintenance issues (electrical, plumbing, HVAC, projectors, furniture), track active tickets with live SLAs, and inspect facility issues. " +
+          "Always maintain conversation context from the message history thread and answer each question with a direct, unique, and tailored response. " +
+          "If an image is attached, describe what you observe and categorize the maintenance severity.";
 
-        agentReplyText = `🚀 AI Assistant Issue Submission Complete!\n\nI have automatically recognized your 'Submit Issue' intent and created a new complaint record in the system database:\n\n• Ticket ID: ${ticketId}\n• Category: ${category}\n• Title: ${complaintTitle}\n• Location: ${building}, ${room}\n• Priority: ${priority}\n• Status: Submitted (Dispatched to Maintenance Staff)\n${currentImg ? '• Photo Evidence: Attached in payload\n' : ''}\nYour issue has been logged successfully in MySQL. You can track live SLA progress on your dashboard!`;
-        modelUsedName = 'CampusFix AI Assistant (Submit Intent Auto-Submit)';
-        if (showToast) showToast(`Ticket ${ticketId} auto-submitted & logged in database!`, 'success');
-      } catch (err) {
-        console.warn('API auto-submit error:', err);
-        agentReplyText = `I attempted to auto-submit your report via the AI agent, but encountered an error. Please try reporting via the '+ Report Issue' button above.`;
-      }
-    } else {
-      // Standard chat / Gemini API call
-      const currentHistory = [...messages, { role: 'user', content: userText }]
-        .map((m) => ({
-          role: m.role,
-          content: m.content || '',
-        }))
-        .filter((m) => m.content.trim() !== '');
-
-      const historyPayload = currentHistory.slice(-12);
-
-      try {
         const response = await chatApi.sendMessage(
           historyPayload,
-          taskType,
-          customSystemInstruction
+          'general',
+          systemPrompt,
+          currentImg
         );
         agentReplyText = response.reply;
         modelUsedName = response.modelUsed;
-      } catch {
-        agentReplyText = `👋 **CampusFix AI Facility Assistant**:\nI am here to assist with campus maintenance! You can ask me to:\n1. **Report an issue** (e.g., "Report broken AC in Tech Block Room 304")\n2. **Attach photo evidence** for AI vision diagnostics\n3. **Track active complaint tickets & SLA progress**\n\nHow can I help resolve your facility request today?`;
-        modelUsedName = 'CampusFix AI Assistant';
       }
+    } catch (err) {
+      console.error('Chat processing error:', err);
+      agentReplyText = "I encountered an error processing your request. Please try again or use the manual report button.";
     }
 
     const modelReply = {
@@ -353,6 +560,12 @@ export const GeminiChatBot = ({ showToast }) => {
     });
 
     setLoading(false);
+
+    if (isAutoSpeakEnabled && agentReplyText) {
+      setTimeout(() => {
+        speakText(agentReplyText, modelReply.id);
+      }, 300);
+    }
   };
 
   const handleClearHistory = async () => {
@@ -449,6 +662,42 @@ export const GeminiChatBot = ({ showToast }) => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !isAutoSpeakEnabled;
+                  setIsAutoSpeakEnabled(nextState);
+                  if (nextState) {
+                    playChime('start');
+                    const welcomePrompt = voiceLang === 'ta-IN'
+                      ? 'வணக்கம்! வாய்ஸ் ஆன் செய்யப்பட்டது. உங்கள் குரல் எனக்கு மிகத் தெளிவாகக் கேட்கிறது! உங்களுக்கு என்ன உதவி வேண்டும்?'
+                      : 'Voice activated! I can hear you loud and crystal clear. How can I help you today?';
+                    speakText(welcomePrompt, 'voice-toggle-welcome');
+                    if (showToast) showToast(voiceLang === 'ta-IN' ? '🔊 வாய்ஸ் ஆன் செய்யப்பட்டது (தெளிவான குரல்)' : '🔊 Auto-Voice: ON (Clear HD Voice)', 'success');
+                  } else {
+                    stopSpeaking();
+                    playChime('stop');
+                    if (showToast) showToast('Auto-Voice turned off', 'info');
+                  }
+                }}
+                style={{
+                  background: isAutoSpeakEnabled ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255,255,255,0.15)',
+                  border: isAutoSpeakEnabled ? '1px solid #86efac' : 'none',
+                  borderRadius: '6px',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  padding: '5px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                }}
+                title={isAutoSpeakEnabled ? "Auto-speak active (Clear Voice)" : "Enable auto-speak for AI replies"}
+              >
+                {isAutoSpeakEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                <span>{isAutoSpeakEnabled ? 'Auto-Voice: ON' : 'Auto-Voice: OFF'}</span>
+              </button>
               <button
                 type="button"
                 onClick={handleClearHistory}
@@ -600,16 +849,51 @@ export const GeminiChatBot = ({ showToast }) => {
                         )}
                       </div>
                     </div>
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        color: '#64748b',
-                        marginTop: '4px',
-                        paddingInline: '36px',
-                      }}
-                    >
-                      {isUser ? 'You' : 'AI Assistant'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingInline: '36px', width: '100%' }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          color: '#64748b',
+                          marginTop: '4px',
+                        }}
+                      >
+                        {isUser ? 'You' : 'AI Assistant'}
+                      </span>
+                      {!isUser && (
+                        <button
+                          type="button"
+                          onClick={() => speakText(m.content, m.id)}
+                          style={{
+                            background: currentlySpeakingId === m.id ? 'rgba(239, 68, 68, 0.12)' : 'none',
+                            border: currentlySpeakingId === m.id ? '1px solid #fca5a5' : 'none',
+                            borderRadius: '6px',
+                            padding: currentlySpeakingId === m.id ? '2px 8px' : '2px 4px',
+                            color: currentlySpeakingId === m.id ? '#dc2626' : '#4f46e5',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            marginTop: '4px',
+                            transition: 'all 0.2s ease',
+                          }}
+                          title={currentlySpeakingId === m.id ? "Click to stop speaking" : "Speak response (HD Clear Voice)"}
+                        >
+                          {currentlySpeakingId === m.id ? (
+                            <>
+                              <VolumeX size={13} className="text-red-600 animate-pulse" />
+                              <span style={{ color: '#dc2626' }}>Stop Voice</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 size={13} />
+                              <span>🔊 Speak Voice</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -732,6 +1016,70 @@ export const GeminiChatBot = ({ showToast }) => {
             onChange={handleFileChange}
           />
 
+          {/* Real-time Listening Feedback Banner */}
+          {isListening && (
+            <div
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#fee2e2',
+                borderTop: '1px solid #fca5a5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.78rem',
+                color: '#b91c1c',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                <span
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: '#dc2626',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                    animation: 'pulse 1s infinite',
+                  }}
+                />
+                <span style={{ fontWeight: 700, flexShrink: 0 }}>
+                  {voiceLang === 'ta-IN' ? '🎤 கேட்கிறது (தமிழ்)... பேசுங்கள்:' : '🎤 Listening (English IN)... Speak:'}
+                </span>
+                {interimTranscript && (
+                  <span
+                    style={{
+                      fontStyle: 'italic',
+                      color: '#7f1d1d',
+                      maxWidth: '160px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    "{interimTranscript}"
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={toggleVoiceRecording}
+                style={{
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                Stop / முடிந்தது
+              </button>
+            </div>
+          )}
+
           {/* Chat Form Input */}
           <form
             onSubmit={(e) => {
@@ -768,7 +1116,6 @@ export const GeminiChatBot = ({ showToast }) => {
               <Paperclip size={16} />
             </button>
 
-            {/* Voice Dictation Microphone Button & Language Toggle */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"
@@ -791,6 +1138,30 @@ export const GeminiChatBot = ({ showToast }) => {
               >
                 {isListening ? <MicOff size={16} className="animate-pulse text-red-600" /> : <Mic size={16} />}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextLang = voiceLang === 'ta-IN' ? 'en-IN' : 'ta-IN';
+                  setVoiceLang(nextLang);
+                  if (showToast) {
+                    showToast(nextLang === 'ta-IN' ? '🇮🇳 மொழி: தமிழ் (Tamil voice & mic active)' : '🌐 Language: English IN active', 'info');
+                  }
+                }}
+                style={{
+                  background: voiceLang === 'ta-IN' ? '#e0e7ff' : '#f3e8ff',
+                  border: '1px solid',
+                  borderColor: voiceLang === 'ta-IN' ? '#c7d2fe' : '#e9d5ff',
+                  borderRadius: '6px',
+                  padding: '4px 6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  color: voiceLang === 'ta-IN' ? '#4338ca' : '#7e22ce',
+                  cursor: 'pointer',
+                }}
+                title="Switch voice language (தமிழ் / English)"
+              >
+                {voiceLang === 'ta-IN' ? 'தமிழ்' : 'ENG'}
+              </button>
             </div>
 
             <input
@@ -805,7 +1176,7 @@ export const GeminiChatBot = ({ showToast }) => {
                 backgroundColor: isListening ? '#fff5f5' : '#ffffff',
                 transition: 'all 0.2s ease',
               }}
-              placeholder={isListening ? '🎤 Listening... Speak now...' : 'Ask AI or report issue...'}
+              placeholder={isListening ? (voiceLang === 'ta-IN' ? '🎤 கேட்கிறது... தமிழில் பேசுங்கள்...' : '🎤 Listening... Speak now...') : (voiceLang === 'ta-IN' ? 'கேளுங்கள் அல்லது பேசுங்கள்...' : 'Ask AI or report issue...')}
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={loading}

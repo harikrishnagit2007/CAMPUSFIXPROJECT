@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   Clock,
   Play,
@@ -40,6 +41,7 @@ const STATUSES = ['All', 'Submitted', 'Under Review', 'Assigned', 'In Progress',
 const PRIORITIES = ['All', 'Critical', 'High', 'Medium', 'Low'];
 
 export const AdminDashboard = ({ showToast }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'locations' | 'staff'
 
   // Complaints & Analytics
@@ -79,8 +81,8 @@ export const AdminDashboard = ({ showToast }) => {
     setLoading(true);
     try {
       const [compData, statsData, staffData, locData, emergencyData] = await Promise.all([
-        complaintsApi.getComplaints(),
-        complaintsApi.getAnalytics(),
+        complaintsApi.getComplaints(user?.id, user?.role, user?.email),
+        complaintsApi.getAnalytics(user?.id, user?.role, user?.email),
         staffApi.getStaff(),
         locationsApi.getLocations(),
         complaintsApi.getEmergencyAlerts(),
@@ -282,6 +284,18 @@ export const AdminDashboard = ({ showToast }) => {
             <Users size={15} />
             <span>Staff Directory ({staffList.length})</span>
           </button>
+
+          {staffList.length === 0 && locationsList.length === 0 && (
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={seedSystemData}
+              disabled={actionLoading}
+              style={{ borderRadius: '8px', border: '1px dashed var(--primary-500)', color: 'var(--primary-600)' }}
+            >
+              <RotateCcw size={15} />
+              <span>{actionLoading ? 'Seeding...' : 'Seed System Data'}</span>
+            </button>
+          )}
         </div>
       </div>
 

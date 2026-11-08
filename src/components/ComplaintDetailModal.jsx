@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { complaintsApi } from '../api/complaints';
 import { QRBadgeModal } from './QRBadgeModal';
 import { locationsApi } from '../api/locations';
+import { MaintenanceHistory } from './MaintenanceHistory';
 
 export const ComplaintDetailModal = ({
   isOpen,
@@ -905,6 +906,17 @@ export const ComplaintDetailModal = ({
               </div>
             </div>
           )}
+
+          {/* Maintenance History & Technician Repair Notes Component */}
+          <MaintenanceHistory
+            complaint={complaint}
+            isStaffOrAdmin={isAdmin || isStaff}
+            showToast={showToast}
+            onAddNote={async (id, data) => {
+              await complaintsApi.updateComplaint(id, { repair_note: data });
+              if (onRefresh) onRefresh();
+            }}
+          />
 
           {/* Footer Actions */}
           <div

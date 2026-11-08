@@ -173,6 +173,7 @@ export const LostFoundModule = ({ showToast }) => {
         lostFoundService.fetchItemClaims(),
         lostFoundService.fetchLostFoundStats(),
       ]);
+      
       setItems(itemsData || []);
       setClaims(claimsData || []);
       setStats(statsData || { totalLost: 0, totalFound: 0, pendingClaims: 0, returnedCount: 0 });

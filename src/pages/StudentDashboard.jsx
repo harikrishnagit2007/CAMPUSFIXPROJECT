@@ -16,7 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { complaintsApi } from '../api/complaints';
+import { firebaseService } from '../services/firebaseService';
 import { locationsApi } from '../api/locations';
 import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
@@ -61,26 +61,18 @@ export const StudentDashboard = ({
   const fetchComplaintsAndStats = async () => {
     setLoading(true);
     try {
-      const [listData, emergencyData] = await Promise.all([
-        complaintsApi.getComplaints(),
-        complaintsApi.getEmergencyAlerts(),
-      ]);
-      const myList = listData || [];
-      const mySubmitted = myList.filter((c) => ['Submitted', 'Under Review'].includes(c.status)).length;
-      const myInProgress = myList.filter((c) => ['Assigned', 'In Progress'].includes(c.status)).length;
-      const myResolved = myList.filter((c) => c.status === 'Resolved').length;
+      const myList = await firebaseService.getComplaints(user?.id || user?.uid, user?.role);
 
       setComplaints(myList);
-      setEmergencies(emergencyData || []);
       setStats({
         total: myList.length,
-        submitted: mySubmitted,
-        in_progress: myInProgress,
-        resolved: myResolved,
+        submitted: myList.filter((c) => ['Submitted', 'Under Review'].includes(c.status)).length,
+        in_progress: myList.filter((c) => ['Assigned', 'In Progress'].includes(c.status)).length,
+        resolved: myList.filter((c) => c.status === 'Resolved').length,
       });
     } catch (err) {
       console.error(err);
-      showToast(err.message || 'Failed to load complaints.', 'error');
+      showToast('Failed to load complaints.', 'error');
     } finally {
       setLoading(false);
     }
@@ -88,6 +80,14 @@ export const StudentDashboard = ({
 
   useEffect(() => {
     fetchComplaintsAndStats();
+
+    // Listen for global complaint submission / update events from modals or AI Chatbot
+    const handleRefresh = () => {
+      fetchComplaintsAndStats();
+    };
+
+    window.addEventListener('complaintCreated', handleRefresh);
+    window.addEventListener('complaintUpdated', handleRefresh);
 
     // Check for Deep-link QR Location in URL (?location_id=...)
     const params = new URLSearchParams(window.location.search);
@@ -102,7 +102,12 @@ export const StudentDashboard = ({
         })
         .catch(() => {});
     }
-  }, []);
+
+    return () => {
+      window.removeEventListener('complaintCreated', handleRefresh);
+      window.removeEventListener('complaintUpdated', handleRefresh);
+    };
+  }, [user]);
 
   // Filter complaints client-side with Search, Status, Priority, Category
   const filteredComplaints = complaints.filter((item) => {
@@ -157,25 +162,17 @@ export const StudentDashboard = ({
   };
 
   return (
-    <div className="container" style={{ padding: '30px 20px' }}>
-
+    <div className="container" style={{ padding: '24px 20px' }}>
 
       {/* Student Welcome & Quick Actions */}
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '28px',
-        }}
+        className="flex justify-between items-center flex-wrap gap-4 mb-8"
       >
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+          <h1 style={{ fontSize: 'var(--heading-1)', fontWeight: 800, color: 'var(--text-primary)' }}>
             Welcome back, {user?.name || 'Student'}!
           </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <p style={{ fontSize: 'var(--text-base)', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {user?.department || 'Campus Student'} • Track your reported facility issues and resolution updates.
           </p>
         </div>
@@ -524,12 +521,11 @@ export const StudentDashboard = ({
         )}
       </div>
 
-      {/* Report or Edit Modal */}
-      {(isReportModalOpen || editingComplaint) && (
+      {/* Edit Modal (Global creation modal is handled in App.jsx) */}
+      {Boolean(editingComplaint) && (
         <ComplaintModal
-          isOpen={isReportModalOpen || Boolean(editingComplaint)}
+          isOpen={Boolean(editingComplaint)}
           onClose={() => {
-            if (isReportModalOpen) onCloseReportModal();
             setEditingComplaint(null);
             setQrPrefilledLocation(null);
           }}
