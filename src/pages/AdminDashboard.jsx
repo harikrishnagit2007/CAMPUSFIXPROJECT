@@ -284,18 +284,6 @@ export const AdminDashboard = ({ showToast }) => {
             <Users size={15} />
             <span>Staff Directory ({staffList.length})</span>
           </button>
-
-          {staffList.length === 0 && locationsList.length === 0 && (
-            <button
-              className="btn btn-sm btn-secondary"
-              onClick={seedSystemData}
-              disabled={actionLoading}
-              style={{ borderRadius: '8px', border: '1px dashed var(--primary-500)', color: 'var(--primary-600)' }}
-            >
-              <RotateCcw size={15} />
-              <span>{actionLoading ? 'Seeding...' : 'Seed System Data'}</span>
-            </button>
-          )}
         </div>
       </div>
 

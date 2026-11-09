@@ -1,37 +1,137 @@
 import React from 'react';
+import { Wrench, LogOut, QrCode, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export const Navbar = ({ onOpenReportModal }) => {
+export const Navbar = ({
+  activeModule = 'issues',
+  onChangeModule,
+  onOpenReportModal,
+  onOpenQrScanner,
+}) => {
   const { user, logout, isStudent } = useAuth();
 
   return (
-    <header className="flex items-center justify-between gap-8 px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-      {/* Zone 1: Breadcrumbs (simplified) */}
-      <nav className="text-sm text-slate-500 font-medium whitespace-nowrap shrink-0">
-        CampusFix <span className="text-slate-300">/</span> Dashboard
-      </nav>
+    <header className="navbar">
+      <div className="nav-container">
+        {/* Brand */}
+        <div
+          className="brand-wrapper"
+          style={{ cursor: onChangeModule ? 'pointer' : 'default' }}
+          onClick={() => onChangeModule && onChangeModule('issues')}
+        >
+          <div className="brand-icon">
+            <Wrench size={22} strokeWidth={2.5} />
+          </div>
+          <div className="brand-text">
+            <h1>CampusFix</h1>
+            <span>Smart Campus Management</span>
+          </div>
+        </div>
 
-      {/* Zone 2: Empty for now (per contract) */}
-      <div className="flex-1" />
+        {/* Module Switcher Pills */}
+        {user && onChangeModule && (
+          <div
+            style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              gap: '4px',
+            }}
+          >
+            <button
+              onClick={() => onChangeModule('issues')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeModule === 'issues' ? '#ffffff' : 'transparent',
+                color: activeModule === 'issues' ? 'var(--primary-600)' : 'var(--text-secondary)',
+                fontWeight: activeModule === 'issues' ? 700 : 500,
+                fontSize: '0.82rem',
+                boxShadow: activeModule === 'issues' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Wrench size={14} />
+              <span>Campus Issues</span>
+            </button>
+            <button
+              onClick={() => onChangeModule('lost-found')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeModule === 'lost-found' ? '#ffffff' : 'transparent',
+                color: activeModule === 'lost-found' ? 'var(--primary-600)' : 'var(--text-secondary)',
+                fontWeight: activeModule === 'lost-found' ? 700 : 500,
+                fontSize: '0.82rem',
+                boxShadow: activeModule === 'lost-found' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Search size={14} />
+              <span>Lost & Found</span>
+            </button>
+          </div>
+        )}
 
-      {/* Zone 3: Primary Action */}
-      <div className="flex items-center gap-4 shrink-0">
-        {user && isStudent && onOpenReportModal && (
-          <button 
-            onClick={onOpenReportModal}
-            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors whitespace-nowrap"
-          >
-            Report Issue
-          </button>
-        )}
-        {user && (
-          <button 
-            onClick={logout}
-            className="text-xs text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-          >
-            Sign Out
-          </button>
-        )}
+        {/* User Info & Actions */}
+        {user ? (
+          <div className="nav-actions">
+            {onOpenQrScanner && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={onOpenQrScanner}
+                title="Scan Classroom / Location QR Code"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <QrCode size={15} />
+                <span className="hide-mobile">Scan QR</span>
+              </button>
+            )}
+
+            {isStudent && onOpenReportModal && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={onOpenReportModal}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span>+ Report Issue</span>
+              </button>
+            )}
+
+            <div className="user-badge">
+              <div className="user-avatar">
+                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="user-info">
+                <span className="user-name">{user.name || user.username}</span>
+                <span className="user-role-tag">{user.role}</span>
+              </div>
+            </div>
+
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={logout}
+              title="Sign out of CampusFix"
+              style={{ padding: '8px 12px' }}
+            >
+              <LogOut size={16} />
+              <span className="hide-mobile">Sign Out</span>
+            </button>
+          </div>
+        ) : null}
+
       </div>
     </header>
   );

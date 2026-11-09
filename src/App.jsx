@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
-import { Sidebar } from './components/Sidebar';
 import { Toast } from './components/Toast';
 import { AuthPage } from './pages/AuthPage';
 import { StudentDashboard } from './pages/StudentDashboard';
@@ -69,42 +68,41 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar activeModule={activeModule} onChangeModule={setActiveModule} />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar
-          onOpenReportModal={() => {
-            setGlobalPrefilledLocation(null);
-            setIsReportModalOpen(true);
-          }}
-        />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Navbar
+        activeModule={activeModule}
+        onChangeModule={setActiveModule}
+        onOpenReportModal={() => {
+          setGlobalPrefilledLocation(null);
+          setIsReportModalOpen(true);
+        }}
+        onOpenQrScanner={() => setIsGlobalQrScannerOpen(true)}
+      />
 
-        <main className="flex-1 overflow-auto p-6">
-          {!user ? (
-            <AuthPage showToast={showToast} />
-          ) : activeModule === 'lost-found' ? (
-            <LostFoundModule showToast={showToast} />
-          ) : isAdmin ? (
-            <AdminDashboard showToast={showToast} />
-          ) : isStaff ? (
-            <StaffDashboard showToast={showToast} />
-          ) : (
-            <StudentDashboard
-              showToast={showToast}
-              onOpenReportModal={() => {
-                setGlobalPrefilledLocation(null);
-                setIsReportModalOpen(true);
-              }}
-              isReportModalOpen={isReportModalOpen}
-              onCloseReportModal={() => {
-                setIsReportModalOpen(false);
-                setGlobalPrefilledLocation(null);
-              }}
-            />
-          )}
-        </main>
-      </div>
+      <main style={{ flex: 1 }}>
+        {!user ? (
+          <AuthPage showToast={showToast} />
+        ) : activeModule === 'lost-found' ? (
+          <LostFoundModule showToast={showToast} />
+        ) : isAdmin ? (
+          <AdminDashboard showToast={showToast} />
+        ) : isStaff ? (
+          <StaffDashboard showToast={showToast} />
+        ) : (
+          <StudentDashboard
+            showToast={showToast}
+            onOpenReportModal={() => {
+              setGlobalPrefilledLocation(null);
+              setIsReportModalOpen(true);
+            }}
+            isReportModalOpen={isReportModalOpen}
+            onCloseReportModal={() => {
+              setIsReportModalOpen(false);
+              setGlobalPrefilledLocation(null);
+            }}
+          />
+        )}
+      </main>
 
       {/* Global Student Complaint Creation Modal */}
       {user && isStudent && (

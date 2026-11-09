@@ -1,91 +1,87 @@
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  serverTimestamp, 
-  orderBy 
-} from 'firebase/firestore';
+import { apiClient } from './client';
 
-const COLLECTION = 'staff';
-
-const handleFirestoreError = (error, operationType, path) => {
-  console.error(`Firestore ${operationType} Error on ${path}:`, error);
-  throw error;
-};
+const DEFAULT_STAFF = [
+  {
+    id: 'STF-101',
+    name: 'Rajesh Kumar',
+    department: 'Electrical Maintenance',
+    email: 'rajesh.maint@campusfix.edu',
+    phone: '+91 98765 43210',
+    role: 'Senior Electrician',
+    status: 'Active',
+  },
+  {
+    id: 'STF-102',
+    name: 'Suresh Babu',
+    department: 'Civil & Plumbing',
+    email: 'suresh.plumb@campusfix.edu',
+    phone: '+91 98765 43211',
+    role: 'Plumbing Specialist',
+    status: 'Active',
+  },
+  {
+    id: 'STF-103',
+    name: 'Anitha Ramesh',
+    department: 'HVAC & Climate Control',
+    email: 'anitha.hvac@campusfix.edu',
+    phone: '+91 98765 43212',
+    role: 'AC Technician',
+    status: 'Active',
+  },
+  {
+    id: 'STF-104',
+    name: 'Karthik Subramanian',
+    department: 'IT Infrastructure',
+    email: 'karthik.it@campusfix.edu',
+    phone: '+91 98765 43213',
+    role: 'Network Administrator',
+    status: 'Active',
+  },
+];
 
 export const staffApi = {
   getStaff: async (params = {}) => {
     try {
-      let q = collection(db, COLLECTION);
-      const constraints = [];
-      
-      if (params.department) {
-        constraints.push(where('department', '==', params.department));
-      }
-      if (params.status) {
-        constraints.push(where('status', '==', params.status));
-      }
-
-      const firestoreQuery = query(q, ...constraints, orderBy('name', 'asc'));
-      const querySnapshot = await getDocs(firestoreQuery);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch (error) {
-      handleFirestoreError(error, 'list', COLLECTION);
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          query.append(k, v);
+        }
+      });
+      const qs = query.toString() ? `?${query.toString()}` : '';
+      const res = await apiClient(`/staff/${qs}`, { method: 'GET', silentError: true });
+      if (Array.isArray(res) && res.length > 0) return res;
+    } catch (err) {
+      console.warn('API getStaff fallback:', err);
     }
+    return DEFAULT_STAFF;
   },
 
   getStaffMember: async (id) => {
     try {
-      const docRef = doc(db, COLLECTION, id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
-      }
-      return null;
-    } catch (error) {
-      handleFirestoreError(error, 'get', `${COLLECTION}/${id}`);
+      const res = await apiClient(`/staff/${id}/`, { method: 'GET', silentError: true });
+      if (res && res.id) return res;
+    } catch (err) {
+      console.warn('API getStaffMember fallback:', err);
     }
+    const found = DEFAULT_STAFF.find((s) => s.id.toLowerCase() === String(id).toLowerCase());
+    return found || DEFAULT_STAFF[0];
   },
 
-  createStaff: async (data) => {
-    try {
-      const docRef = await addDoc(collection(db, COLLECTION), {
-        ...data,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...data };
-    } catch (error) {
-      handleFirestoreError(error, 'create', COLLECTION);
-    }
-  },
+  createStaff: (data) =>
+    apiClient('/staff/', {
+      method: 'POST',
+      body: data,
+    }),
 
-  updateStaff: async (id, data) => {
-    try {
-      const docRef = doc(db, COLLECTION, id);
-      await updateDoc(docRef, {
-        ...data,
-        updated_at: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'update', `${COLLECTION}/${id}`);
-    }
-  },
+  updateStaff: (id, data) =>
+    apiClient(`/staff/${id}/`, {
+      method: 'PATCH',
+      body: data,
+    }),
 
-  deleteStaff: async (id) => {
-    try {
-      await deleteDoc(doc(db, COLLECTION, id));
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'delete', `${COLLECTION}/${id}`);
-    }
-  },
+  deleteStaff: (id) =>
+    apiClient(`/staff/${id}/`, {
+      method: 'DELETE',
+    }),
 };

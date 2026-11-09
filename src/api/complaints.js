@@ -102,21 +102,5 @@ export const complaintsApi = {
     } catch (error) {
       handleFirestoreError(error, 'list', COLLECTION);
     }
-  },
-  getEmergencyAlerts: async () => {
-    try {
-      const q = query(
-        collection(db, COLLECTION),
-        where('priority', '==', 'Critical'),
-        where('status', '!=', 'Resolved'),
-        orderBy('status'), // Necessary because of != filter
-        orderBy('created_at', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch (error) {
-      console.error('Emergency alerts error:', error);
-      return [];
-    }
   }
 };

@@ -592,11 +592,25 @@ function apiDevPlugin() {
                 contents: [
                   {
                     role: 'user',
-                    parts: [{ text: cleanText }],
+                    parts: [
+                      {
+                        text: cleanText,
+                        speechMetadata: {
+                          style: isTamil
+                            ? 'Clear, pleasant and articulate voice in Tamil'
+                            : 'Clear, friendly, pleasant and warm female voice profile',
+                        },
+                      },
+                    ],
                   },
                 ],
                 config: {
                   responseModalities: ['AUDIO'],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
+                    },
+                  },
                 },
               });
 
