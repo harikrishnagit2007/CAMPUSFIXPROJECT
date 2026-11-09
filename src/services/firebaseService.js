@@ -1,83 +1,64 @@
+import { complaintsApi } from '../api/complaints';
 import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp, 
-  orderBy 
+import {
+  collection,
+  getDocs,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
-const COMPLAINTS_COL = 'complaints';
 const LF_COL = 'lost_found';
 
 export const firebaseService = {
   // --- Complaints ---
-  getComplaints: async (userId, userRole) => {
-    let q = query(collection(db, COMPLAINTS_COL), orderBy('created_at', 'desc'));
-    if (userRole === 'STUDENT' && userId) {
-      q = query(collection(db, COMPLAINTS_COL), where('student_id', '==', userId), orderBy('created_at', 'desc'));
-    }
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  getComplaints: async (userId, userRole, userEmail) => {
+    return complaintsApi.getComplaints(userId, userRole, userEmail);
   },
 
   createComplaint: async (payload) => {
-    return await addDoc(collection(db, COMPLAINTS_COL), {
-      ...payload,
-      status: 'Submitted',
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-    });
+    return complaintsApi.createComplaint(payload);
   },
 
   updateComplaintStatus: async (complaintId, status) => {
-    await updateDoc(doc(db, COMPLAINTS_COL, complaintId), {
-      status,
-      updated_at: serverTimestamp(),
-      ...(status === 'Resolved' ? { resolved_at: serverTimestamp() } : {})
-    });
+    return complaintsApi.updateStatus(complaintId, status);
   },
 
   deleteComplaint: async (complaintId) => {
-    await deleteDoc(doc(db, COMPLAINTS_COL, complaintId));
+    return complaintsApi.deleteComplaint(complaintId);
   },
 
-  // --- Analytics ---
-  getAnalytics: async (userId, userRole) => {
-    const q = collection(db, COMPLAINTS_COL);
-    const snapshot = await getDocs(q);
-    const all = snapshot.docs.map(doc => doc.data());
-    
-    let filtered = all;
-    if (userRole === 'STUDENT' && userId) {
-      filtered = all.filter(c => c.student_id === userId);
-    }
-    
-    return {
-      total: filtered.length,
-      submitted: filtered.filter(c => ['Submitted', 'Under Review'].includes(c.status)).length,
-      in_progress: filtered.filter(c => ['Assigned', 'In Progress'].includes(c.status)).length,
-      resolved: filtered.filter(c => c.status === 'Resolved').length,
-      critical: filtered.filter(c => c.priority === 'Critical').length
-    };
+  getAnalytics: async (userId, userRole, userEmail) => {
+    return complaintsApi.getAnalytics(userId, userRole, userEmail);
   },
 
   // --- Lost & Found ---
   getLostFoundItems: async () => {
-    const snapshot = await getDocs(collection(db, LF_COL));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    try {
+      const snapshot = await getDocs(collection(db, LF_COL));
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (err) {
+      console.warn('Firestore getLostFoundItems fallback notice:', err);
+      const raw = localStorage.getItem('campusfix_lostfound_items');
+      return raw ? JSON.parse(raw) : [];
+    }
   },
 
   createLostFoundItem: async (payload) => {
-    return await addDoc(collection(db, LF_COL), {
-      ...payload,
-      status: 'OPEN',
-      created_at: serverTimestamp(),
-    });
-  }
+    try {
+      const docRef = await addDoc(collection(db, LF_COL), {
+        ...payload,
+        status: payload.status || 'OPEN',
+        created_at: serverTimestamp(),
+      });
+      return { id: docRef.id, ...payload };
+    } catch (err) {
+      console.warn('Firestore createLostFoundItem fallback notice:', err);
+      const raw = localStorage.getItem('campusfix_lostfound_items');
+      const list = raw ? JSON.parse(raw) : [];
+      const item = { id: `LF-${Date.now()}`, ...payload };
+      list.unshift(item);
+      localStorage.setItem('campusfix_lostfound_items', JSON.stringify(list));
+      return item;
+    }
+  },
 };

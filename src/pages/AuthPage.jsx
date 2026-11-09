@@ -13,22 +13,7 @@ import { useAuth } from '../context/AuthContext';
 export const AuthPage = ({ showToast }) => {
   const { login, register, signInWithGoogle, forgotPassword, resetPassword } = useAuth();
   
-  const BACKGROUND_VIDEO_URL = 'https://videotourl.com/videos/1794082003507-8cb50f37-be4e-4903-bcd1-fd42a3dcb519.mp4';
-  const videoRef = useRef(null);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.defaultMuted = true;
-      videoRef.current.muted = true;
-      videoRef.current.playbackRate = 1.0;
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('Background video autoplay was restricted:', err);
-        });
-      }
-    }
-  }, []);
   
   // Selected Role Portal: 'STUDENT' | 'ADMIN' | 'STAFF'
   const [selectedPortal, setSelectedPortal] = useState('STUDENT');
@@ -257,48 +242,13 @@ export const AuthPage = ({ showToast }) => {
 
   return (
     <div
+      className="auth-container"
       style={{
-        position: 'relative',
-        minHeight: '100vh',
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         padding: '24px 16px',
         overflowY: 'auto',
       }}
     >
-      {/* Background HTML5 Video */}
-      <video
-        ref={videoRef}
-        src={BACKGROUND_VIDEO_URL}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        onEnded={(e) => {
-          e.target.play().catch(() => {});
-        }}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          minWidth: '100%',
-          minHeight: '100%',
-          objectFit: 'cover',
-          objectPosition: 'center center',
-          zIndex: 0,
-          pointerEvents: 'none',
-          filter: 'contrast(1.05) saturate(1.1)',
-        }}
-      >
-        <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
-        Your browser does not support HTML5 video background.
-      </video>
-      {/* Crystal clear dark subtle overlay for superior readability without obscuring video */}
+      {/* Subtle overlay for contrast and legibility over the full-screen background image */}
       <div
         style={{
           position: 'fixed',
@@ -306,7 +256,7 @@ export const AuthPage = ({ showToast }) => {
           left: 0,
           width: '100vw',
           height: '100vh',
-          background: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%)',
+          background: 'radial-gradient(circle at center, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.6) 100%)',
           zIndex: 1,
           pointerEvents: 'none',
         }}

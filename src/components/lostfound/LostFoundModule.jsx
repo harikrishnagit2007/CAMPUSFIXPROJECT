@@ -165,7 +165,7 @@ export const LostFoundModule = ({ showToast }) => {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '24px', paddingBottom: '60px' }}>
+    <div className="container dashboard-white-box" style={{ paddingTop: '24px', paddingBottom: '60px' }}>
       {/* Module Hero & Quick Actions */}
       <div
         style={{

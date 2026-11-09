@@ -224,7 +224,7 @@ export const AdminDashboard = ({ showToast }) => {
   };
 
   return (
-    <div className="container" style={{ padding: '30px 20px' }}>
+    <div className="container dashboard-white-box">
 
 
       {/* Header */}

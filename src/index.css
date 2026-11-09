@@ -757,16 +757,20 @@ textarea.form-control {
   }
 }
 
-/* Auth Page Video Background Styles */
+/* Auth Page Background Styles */
 .auth-container {
   position: relative;
   min-height: 100vh;
   width: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #090d16 0%, #0f172a 50%, #1e1b4b 100%);
+  background-image: url('https://cdn.phototourl.com/member/2026-11-09-f2c6cdb0-98aa-4515-b356-beaf7b53eeb7.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .auth-video-container {

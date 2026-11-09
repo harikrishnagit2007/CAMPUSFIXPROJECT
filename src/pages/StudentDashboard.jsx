@@ -162,11 +162,10 @@ export const StudentDashboard = ({
   };
 
   return (
-    <div className="container" style={{ padding: '30px 20px' }}>
-
-
+    <div className="container dashboard-white-box">
       {/* Student Welcome & Quick Actions */}
       <div
+        className="student-welcome-box"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -174,11 +173,13 @@ export const StudentDashboard = ({
           flexWrap: 'wrap',
           gap: '16px',
           marginBottom: '28px',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
         }}
       >
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            Welcome back, {user?.name || 'Student'}!
+            Welcome back, {user?.name || 'Harikrishna GM'}!
           </h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {user?.department || 'Campus Student'} • Track your reported facility issues and resolution updates.

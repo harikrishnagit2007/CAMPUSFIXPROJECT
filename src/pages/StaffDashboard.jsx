@@ -96,7 +96,7 @@ export const StaffDashboard = ({ showToast }) => {
   const resolvedCount = complaints.filter((c) => c.status === 'Resolved').length;
 
   return (
-    <div className="container" style={{ padding: '30px 20px' }}>
+    <div className="container dashboard-white-box">
 
 
       <div style={{ marginBottom: '28px' }}>

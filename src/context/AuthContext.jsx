@@ -10,7 +10,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('campusfix_user');
-      return stored ? JSON.parse(stored) : null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.email && parsed.email.toLowerCase().includes('harikrishna')) {
+          parsed.name = 'Hari Krishna';
+        }
+        return parsed;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -33,7 +40,7 @@ export const AuthProvider = ({ children }) => {
             } catch (e) {}
           }
           const email = fbUser.email || '';
-          const name = fbUser.displayName || (email.includes('harikrishna') ? 'Harikrishna GM' : email.split('@')[0]) || 'Campus Member';
+          const name = fbUser.displayName || (email.includes('harikrishna') ? 'Hari Krishna' : email.split('@')[0]) || 'Campus Member';
           const dept =
             currentRole === 'ADMIN'
               ? 'Campus Facilities & Operations'
@@ -153,7 +160,7 @@ export const AuthProvider = ({ children }) => {
 
     // Determine user identity from Firebase user or verified campus student identity
     const email = (fbUser?.email || 'harikrishna.gm.2025.aids@rajalakshmi.edu.in').toLowerCase();
-    const name = fbUser?.displayName || (email.includes('harikrishna') ? 'Harikrishna GM' : email.split('@')[0]);
+    const name = fbUser?.displayName || (email.includes('harikrishna') ? 'Hari Krishna' : email.split('@')[0]);
     const photoURL = fbUser?.photoURL || '';
     const uid = fbUser?.uid || `usr_g_${Date.now()}`;
     const idToken = token || `firebase-token-${cleanRole.toLowerCase()}-${Date.now()}`;

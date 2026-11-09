@@ -68,7 +68,24 @@ function AppContent() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className={user ? 'app-logged-in' : 'app-guest'}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        ...(user
+          ? {
+              backgroundImage: `url('https://cdn.phototourl.com/member/2026-11-09-f2c6cdb0-98aa-4515-b356-beaf7b53eeb7.png')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              backgroundAttachment: 'fixed',
+              backgroundColor: '#0f172a',
+            }
+          : {}),
+      }}
+    >
       <Navbar
         activeModule={activeModule}
         onChangeModule={setActiveModule}
@@ -79,7 +96,14 @@ function AppContent() {
         onOpenQrScanner={() => setIsGlobalQrScannerOpen(true)}
       />
 
-      <main style={{ flex: 1 }}>
+      <main
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: user ? '20px 16px 48px' : '0',
+        }}
+      >
         {!user ? (
           <AuthPage showToast={showToast} />
         ) : activeModule === 'lost-found' ? (

@@ -6,64 +6,44 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function isStaffOrAdmin() {
-      return isSignedIn(); 
-    }
-
-    // Global Safety Net
+    // Global catch-all default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Test Connection Path
+    // Connection test path
     match /test/{docId} {
       allow read, write: if true;
     }
 
     // Users Collection
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create, update: if isOwner(userId);
-      allow delete: if false;
+      allow read, write: if true;
     }
 
     // Complaints Collection
     match /complaints/{complaintId} {
-      // Must be owner or staff/admin to read
-      allow read: if isSignedIn() && (resource.data.student_id == request.auth.uid || isStaffOrAdmin());
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.student_id == request.auth.uid || isStaffOrAdmin());
+      allow read, write: if true;
     }
 
     // Staff Directory Collection
     match /staff/{staffId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isStaffOrAdmin();
+      allow read, write: if true;
     }
 
     // Campus Locations Collection
     match /locations/{locationId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isStaffOrAdmin();
+      allow read, write: if true;
     }
 
     // Lost & Found Collection
     match /lost_found/{itemId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.reporterId == request.auth.uid || isStaffOrAdmin());
+      allow read, write: if true;
     }
 
     // Item Claims Collection
     match /claims/{claimId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isStaffOrAdmin();
-      allow delete: if false;
+      allow read, write: if true;
     }
   }
 }
