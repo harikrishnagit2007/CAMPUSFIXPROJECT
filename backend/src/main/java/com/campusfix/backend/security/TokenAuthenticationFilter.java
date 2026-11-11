@@ -1,5 +1,7 @@
 package com.campusfix.backend.security;
 
+import com.campusfix.backend.entity.User;
+import com.campusfix.backend.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,14 +15,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
+    private final UserRepository userRepository;
 
-    public TokenAuthenticationFilter(TokenProvider tokenProvider) {
+    public TokenAuthenticationFilter(TokenProvider tokenProvider, UserRepository userRepository) {
         this.tokenProvider = tokenProvider;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -35,22 +40,72 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             TokenProvider.TokenMetadata meta = tokenProvider.validateToken(token);
             if (meta != null) {
-                String role = meta.getRole() != null ? meta.getRole() : "STUDENT";
+                // Real-time Database Role Verification: Fetch current role directly from MySQL
+                String role = meta.getRole();
+                String username = meta.getUsername();
+
+                // Check MySQL for updated role if user exists
+                if (meta.getUserId() != null) {
+                    Optional<User> userOpt = userRepository.findById(meta.getUserId());
+                    if (userOpt.isPresent()) {
+                        role = userOpt.get().getRole();
+                        username = userOpt.get().getUsername();
+                    }
+                } else if (meta.getUsername() != null) {
+                    Optional<User> userOpt = userRepository.findByUsername(meta.getUsername())
+                            .or(() -> userRepository.findByEmail(meta.getUsername()));
+                    if (userOpt.isPresent()) {
+                        role = userOpt.get().getRole();
+                        username = userOpt.get().getUsername();
+                    }
+                }
+
+                // Header fallback for explicit role hints
+                String headerRole = request.getHeader("X-User-Role");
+                if (headerRole != null && !headerRole.trim().isEmpty() && role == null) {
+                    role = headerRole.trim().toUpperCase();
+                }
+
+                if (role == null || role.trim().isEmpty()) {
+                    role = "STUDENT";
+                }
+
                 List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                        new SimpleGrantedAuthority("ROLE_" + role.toUpperCase())
+                        new SimpleGrantedAuthority("ROLE_" + role.trim().toUpperCase())
                 );
 
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        meta.getUsername(),
+                        username != null ? username : "user",
                         null,
                         authorities
                 );
                 auth.setDetails(meta);
                 SecurityContextHolder.getContext().setAuthentication(auth);
+            } else if (isProtectedPath(request)) {
+                // Return 401 Unauthorized immediately if an invalid token is provided on a protected path
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write("{\"error\": \"Invalid or expired session token. Please re-authenticate.\"}");
+                return;
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Checks whether the request path is a protected route requiring authentication
+     */
+    private boolean isProtectedPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+        if ("OPTIONS".equalsIgnoreCase(method)) return false;
+        if (uri.startsWith("/api/v1/auth/") || uri.startsWith("/api/auth/")) return false;
+        if (uri.startsWith("/api/v1/health/") || uri.startsWith("/api/health/")) return false;
+        if (uri.startsWith("/v3/api-docs") || uri.startsWith("/swagger-ui")) return false;
+
+        return !"GET".equalsIgnoreCase(method);
     }
 
     /**
