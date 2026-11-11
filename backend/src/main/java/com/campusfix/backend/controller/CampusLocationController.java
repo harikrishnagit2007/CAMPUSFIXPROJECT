@@ -42,4 +42,15 @@ public class CampusLocationController {
         CampusLocation saved = locationService.saveLocation(location);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CampusLocation> updateLocation(@PathVariable String id, @RequestBody CampusLocation location) {
+        return ResponseEntity.ok(locationService.updateLocation(id, location));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<java.util.Map<String, Object>> deleteLocation(@PathVariable String id) {
+        locationService.deleteLocation(id);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Location deleted successfully: " + id));
+    }
 }

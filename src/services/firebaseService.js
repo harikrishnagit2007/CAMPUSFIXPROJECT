@@ -1,13 +1,11 @@
-import { complaintsApi } from '../api/complaints';
-import { db } from '../lib/firebase';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
+/**
+ * CampusFix Services Compatibility Layer
+ * Wraps complaintsApi and lostAndFoundApi to eliminate Firestore dependencies
+ * while preserving backwards compatibility with legacy callers.
+ */
 
-const LF_COL = 'lost_found';
+import { complaintsApi } from '../api/complaints';
+import { lostAndFoundApi } from '../api/lostAndFound';
 
 export const firebaseService = {
   // --- Complaints ---
@@ -32,33 +30,31 @@ export const firebaseService = {
   },
 
   // --- Lost & Found ---
-  getLostFoundItems: async () => {
-    try {
-      const snapshot = await getDocs(collection(db, LF_COL));
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } catch (err) {
-      console.warn('Firestore getLostFoundItems fallback notice:', err);
-      const raw = localStorage.getItem('campusfix_lostfound_items');
-      return raw ? JSON.parse(raw) : [];
-    }
+  getLostFoundItems: async (filters = {}) => {
+    return lostAndFoundApi.getItems(filters);
   },
 
   createLostFoundItem: async (payload) => {
-    try {
-      const docRef = await addDoc(collection(db, LF_COL), {
-        ...payload,
-        status: payload.status || 'OPEN',
-        created_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...payload };
-    } catch (err) {
-      console.warn('Firestore createLostFoundItem fallback notice:', err);
-      const raw = localStorage.getItem('campusfix_lostfound_items');
-      const list = raw ? JSON.parse(raw) : [];
-      const item = { id: `LF-${Date.now()}`, ...payload };
-      list.unshift(item);
-      localStorage.setItem('campusfix_lostfound_items', JSON.stringify(list));
-      return item;
-    }
+    return lostAndFoundApi.createItem(payload);
+  },
+
+  fetchPossibleMatches: async (item) => {
+    return lostAndFoundApi.findMatches(item);
+  },
+
+  submitItemClaim: async (payload) => {
+    return lostAndFoundApi.submitClaim(payload);
+  },
+
+  fetchItemClaims: async (params) => {
+    return lostAndFoundApi.getClaims(params);
+  },
+
+  updateClaimStatus: async (claimId, statusData) => {
+    return lostAndFoundApi.updateClaimStatus(claimId, statusData.status, statusData.adminNotes);
+  },
+
+  fetchLostFoundStats: async () => {
+    return lostAndFoundApi.getStats();
   },
 };

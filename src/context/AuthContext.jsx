@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../api/auth';
-import { auth, db, googleProvider } from '../firebase';
+import { auth, googleProvider } from '../firebase';
 import { signInWithPopup, onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
@@ -191,28 +190,7 @@ export const AuthProvider = ({ children }) => {
       isFirebaseUser: true,
     };
 
-    // 2. Sync user profile into Firestore collection /users/{uid}
-    try {
-      await setDoc(
-        doc(db, 'users', uid),
-        {
-          uid,
-          email,
-          name,
-          role: finalRole,
-          department,
-          phone: appUser.phone,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-      console.log('[AuthContext] Successfully synced profile to Firestore /users/' + uid);
-    } catch (fsErr) {
-      console.warn('[AuthContext] Firestore profile sync notice:', fsErr?.message || fsErr);
-    }
-
-    // 3. Sync with backend API
+    // 2. Synchronize user profile directly with Spring Boot backend (MySQL database)
     try {
       await authApi.googleLogin({
         email,
@@ -222,7 +200,7 @@ export const AuthProvider = ({ children }) => {
         token: idToken,
       });
     } catch (apiErr) {
-      console.warn('[AuthContext] Backend session sync notice:', apiErr?.message || apiErr);
+      console.warn('[AuthContext] Spring Boot backend session sync notice:', apiErr?.message || apiErr);
     }
 
     // 4. Set state and local storage

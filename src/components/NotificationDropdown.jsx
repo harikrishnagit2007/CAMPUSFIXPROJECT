@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, AlertTriangle, Info, Flame, CheckCircle, Clock, Mail, Send } from 'lucide-react';
+import { Bell, AlertTriangle, Info, Flame, CheckCircle, Clock, Mail, Send } from 'lucide-react';
 import { notificationsApi } from '../api/notifications';
 
 export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
@@ -13,11 +13,32 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
   const fetchNotifications = async () => {
     try {
       const data = await notificationsApi.getNotifications();
-      setNotifications(data || []);
-      const emails = await notificationsApi.getEmailLogs();
-      setEmailLogs(emails || []);
+      if (Array.isArray(data)) {
+        setNotifications(data);
+      } else if (data && Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+      } else if (data && Array.isArray(data.results)) {
+        setNotifications(data.results);
+      } else {
+        setNotifications([]);
+      }
     } catch {
-      // ignore
+      setNotifications([]);
+    }
+
+    try {
+      const emails = await notificationsApi.getEmailLogs();
+      if (Array.isArray(emails)) {
+        setEmailLogs(emails);
+      } else if (emails && Array.isArray(emails.emails)) {
+        setEmailLogs(emails.emails);
+      } else if (emails && Array.isArray(emails.results)) {
+        setEmailLogs(emails.results);
+      } else {
+        setEmailLogs([]);
+      }
+    } catch {
+      setEmailLogs([]);
     }
   };
 
@@ -38,12 +59,14 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const notifList = Array.isArray(notifications) ? notifications : [];
+  const emailList = Array.isArray(emailLogs) ? emailLogs : [];
+  const unreadCount = notifList.filter((n) => !n?.read).length;
 
   const handleMarkAllRead = async () => {
     try {
       await notificationsApi.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => (Array.isArray(prev) ? prev.map((n) => ({ ...n, read: true })) : []));
       if (showToast) showToast('All notifications marked as read', 'info');
     } catch {
       // ignore
@@ -51,11 +74,12 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
   };
 
   const handleNotificationClick = async (notif) => {
+    if (!notif) return;
     if (!notif.read) {
       try {
         await notificationsApi.markAsRead(notif.id);
         setNotifications((prev) =>
-          prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
+          Array.isArray(prev) ? prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)) : []
         );
       } catch {
         // ignore
@@ -83,7 +107,7 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
   const handleTriggerTestEmail = async () => {
     setSendingTest(true);
     try {
-      const res = await notificationsApi.sendTestEmail();
+      await notificationsApi.sendTestEmail();
       if (showToast) showToast('Test resolution email dispatched to student!', 'success');
       fetchNotifications();
     } catch {
@@ -177,7 +201,7 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                   cursor: 'pointer',
                 }}
               >
-                In-App Alerts ({notifications.length})
+                In-App Alerts ({notifList.length})
               </button>
               <button
                 onClick={() => setActiveTab('email')}
@@ -195,7 +219,7 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                   gap: '4px',
                 }}
               >
-                <Mail size={12} /> Emails ({emailLogs.length})
+                <Mail size={12} /> Emails ({emailList.length})
               </button>
             </div>
 
@@ -243,12 +267,12 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
           {/* List Content */}
           <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
             {activeTab === 'system' ? (
-              notifications.length === 0 ? (
+              notifList.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
                   No in-app notifications right now.
                 </div>
               ) : (
-                notifications.map((n) => (
+                notifList.map((n) => (
                   <div
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
@@ -278,19 +302,19 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                       </div>
                       <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Clock size={10} />
-                        <span>{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
                       </div>
                     </div>
                   </div>
                 ))
               )
             ) : (
-              emailLogs.length === 0 ? (
+              emailList.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
                   No automated resolution email logs yet. Click 'Test Alert' above to trigger an email dispatch.
                 </div>
               ) : (
-                emailLogs.map((e) => (
+                emailList.map((e) => (
                   <div
                     key={e.id}
                     style={{
@@ -301,7 +325,7 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0f172a' }}>
-                        {e.complaint_id} Resolved Alert
+                        {e.complaint_id || 'System'} Resolved Alert
                       </div>
                       <span
                         style={{
@@ -313,18 +337,18 @@ export const NotificationDropdown = ({ onSelectComplaint, showToast }) => {
                           color: e.status === 'SENT' ? '#15803d' : '#4338ca',
                         }}
                       >
-                        {e.status}
+                        {e.status || 'SENT'}
                       </span>
                     </div>
                     <div style={{ fontSize: '0.76rem', color: '#475569', marginTop: '2px' }}>
-                      To: <strong>{e.recipient_name}</strong> ({e.recipient_email})
+                      To: <strong>{e.recipient_name || 'Student'}</strong> ({e.recipient_email || 'student@campusfix.edu'})
                     </div>
                     <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '3px', fontStyle: 'italic' }}>
-                      "{e.subject}"
+                      "{e.subject || 'Automated Update'}"
                     </div>
                     <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Clock size={10} />
-                      <span>{new Date(e.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{e.sent_at ? new Date(e.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}</span>
                     </div>
                   </div>
                 ))

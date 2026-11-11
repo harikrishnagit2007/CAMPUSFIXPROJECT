@@ -1,91 +1,61 @@
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  serverTimestamp, 
-  orderBy 
-} from 'firebase/firestore';
-
-const COLLECTION = 'staff';
-
-const handleFirestoreError = (error, operationType, path) => {
-  console.error(`Firestore ${operationType} Error on ${path}:`, error);
-  throw error;
-};
+import { apiClient } from './client';
 
 export const staffApi = {
   getStaff: async (params = {}) => {
     try {
-      let q = collection(db, COLLECTION);
-      const constraints = [];
-      
-      if (params.department) {
-        constraints.push(where('department', '==', params.department));
-      }
-      if (params.status) {
-        constraints.push(where('status', '==', params.status));
-      }
-
-      const firestoreQuery = query(q, ...constraints, orderBy('name', 'asc'));
-      const querySnapshot = await getDocs(firestoreQuery);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const q = new URLSearchParams();
+      if (params.department) q.append('department', params.department);
+      if (params.status || params.availability) q.append('availability', params.status || params.availability);
+      const queryString = q.toString() ? `?${q.toString()}` : '';
+      return await apiClient(`/staff${queryString}`, { method: 'GET' });
     } catch (error) {
-      handleFirestoreError(error, 'list', COLLECTION);
+      console.error('[staffApi] getStaff error:', error);
+      return [];
     }
   },
 
   getStaffMember: async (id) => {
     try {
-      const docRef = doc(db, COLLECTION, id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
-      }
-      return null;
+      return await apiClient(`/staff/${id}`, { method: 'GET' });
     } catch (error) {
-      handleFirestoreError(error, 'get', `${COLLECTION}/${id}`);
+      console.error(`[staffApi] getStaffMember error for id ${id}:`, error);
+      return null;
     }
   },
 
   createStaff: async (data) => {
-    try {
-      const docRef = await addDoc(collection(db, COLLECTION), {
-        ...data,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...data };
-    } catch (error) {
-      handleFirestoreError(error, 'create', COLLECTION);
-    }
+    return await apiClient('/staff', {
+      method: 'POST',
+      body: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        department: data.department,
+        specialization: data.specialization || '',
+        availability: data.availability || 'Available',
+        active: data.active !== undefined ? data.active : true,
+      },
+    });
   },
 
   updateStaff: async (id, data) => {
-    try {
-      const docRef = doc(db, COLLECTION, id);
-      await updateDoc(docRef, {
-        ...data,
-        updated_at: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'update', `${COLLECTION}/${id}`);
-    }
+    return await apiClient(`/staff/${id}`, {
+      method: 'PUT',
+      body: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        department: data.department,
+        specialization: data.specialization || '',
+        availability: data.availability || 'Available',
+        active: data.active !== undefined ? data.active : true,
+      },
+    });
   },
 
   deleteStaff: async (id) => {
-    try {
-      await deleteDoc(doc(db, COLLECTION, id));
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'delete', `${COLLECTION}/${id}`);
-    }
+    return await apiClient(`/staff/${id}`, {
+      method: 'DELETE',
+    });
   },
 };

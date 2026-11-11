@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public class UserResponse {
 
     private Long id;
+    private String firebaseUid;
     private String username;
     private String email;
     private String name;
@@ -20,6 +21,7 @@ public class UserResponse {
         if (user == null) return null;
         UserResponse resp = new UserResponse();
         resp.setId(user.getId());
+        resp.setFirebaseUid(user.getFirebaseUid());
         resp.setUsername(user.getUsername());
         resp.setEmail(user.getEmail());
         resp.setName(user.getName());
@@ -36,6 +38,18 @@ public class UserResponse {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getUid() {
+        return firebaseUid != null ? firebaseUid : (id != null ? String.valueOf(id) : null);
+    }
+
+    public String getFirebaseUid() {
+        return firebaseUid;
+    }
+
+    public void setFirebaseUid(String firebaseUid) {
+        this.firebaseUid = firebaseUid;
     }
 
     public String getUsername() {

@@ -13,6 +13,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "firebase_uid", unique = true, length = 128)
+    private String firebaseUid;
+
     @NotBlank(message = "Username is required")
     @Column(name = "username", nullable = false, unique = true, length = 60)
     private String username;
@@ -58,6 +61,14 @@ public class User {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getFirebaseUid() {
+        return firebaseUid;
+    }
+
+    public void setFirebaseUid(String firebaseUid) {
+        this.firebaseUid = firebaseUid;
     }
 
     public String getUsername() {

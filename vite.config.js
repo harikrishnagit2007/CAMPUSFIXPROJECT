@@ -25,6 +25,13 @@ function apiDevPlugin() {
     ],
     lostFound: [],
     claims: [],
+    notifications: [
+      { id: 1, title: 'Welcome to CampusFix', message: 'Smart campus facility maintenance tracking is active.', type: 'info', read: false, created_at: new Date().toISOString() },
+      { id: 2, title: 'Campus Facility Alert', message: 'Scheduled plumbing maintenance completed in Academic Block A.', type: 'success', read: false, created_at: new Date().toISOString() },
+    ],
+    emailLogs: [
+      { id: 1, complaint_id: 'CMP-2026-001', recipient_name: 'Student Member', recipient_email: 'student@campusfix.edu', subject: 'CampusFix: Ticket Resolution Update', status: 'SENT', sent_at: new Date().toISOString() }
+    ],
   };
 
   return {
@@ -390,6 +397,50 @@ function apiDevPlugin() {
               return sendJson(201, newClaim);
             });
           }
+        }
+
+        // 6.5 Notifications routes
+        if (pathname.includes('/notifications/mark_all_read')) {
+          store.notifications.forEach((n) => { n.read = true; });
+          return sendJson(200, { success: true, message: 'All marked as read' });
+        }
+
+        if (pathname.includes('/notifications/emails/send_test')) {
+          const newEmail = {
+            id: store.emailLogs.length + 1,
+            complaint_id: `CMP-${Date.now().toString().slice(-4)}`,
+            recipient_name: 'Student Member',
+            recipient_email: 'student@campusfix.edu',
+            subject: 'CampusFix: Issue Ticket Resolution Verified',
+            status: 'SENT',
+            sent_at: new Date().toISOString(),
+          };
+          store.emailLogs.unshift(newEmail);
+          store.notifications.unshift({
+            id: store.notifications.length + 1,
+            title: 'Automated Resolution Email Sent',
+            message: `Resolution notification dispatched for ${newEmail.complaint_id}.`,
+            type: 'success',
+            read: false,
+            created_at: new Date().toISOString(),
+          });
+          return sendJson(200, { success: true, email: newEmail });
+        }
+
+        if (pathname.includes('/notifications/emails')) {
+          return sendJson(200, store.emailLogs);
+        }
+
+        const notifReadMatch = pathname.match(/\/notifications\/(\d+)\/read/);
+        if (notifReadMatch) {
+          const nId = Number(notifReadMatch[1]);
+          const target = store.notifications.find((n) => n.id === nId);
+          if (target) target.read = true;
+          return sendJson(200, { success: true, notification: target });
+        }
+
+        if (pathname === '/api/notifications' || pathname === '/api/v1/notifications' || pathname.startsWith('/api/notifications')) {
+          return sendJson(200, store.notifications);
         }
 
         // 7. Image Analysis route

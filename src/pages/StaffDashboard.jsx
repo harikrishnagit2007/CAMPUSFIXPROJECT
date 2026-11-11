@@ -37,7 +37,7 @@ export const StaffDashboard = ({ showToast }) => {
     setLoading(true);
     try {
       const [data, emergencyData] = await Promise.all([
-        complaintsApi.getComplaints(),
+        complaintsApi.getComplaints(user?.id, user?.role, user?.email),
         complaintsApi.getEmergencyAlerts(),
       ]);
       setComplaints(data || []);
@@ -96,17 +96,72 @@ export const StaffDashboard = ({ showToast }) => {
   const resolvedCount = complaints.filter((c) => c.status === 'Resolved').length;
 
   return (
-    <div className="container dashboard-white-box">
+    <div className="container" style={{ padding: '30px 20px' }}>
 
 
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+      <div
+        className="welcome-white-box"
+        style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '22px 26px',
+          marginBottom: '28px',
+          boxShadow: '0 10px 25px -4px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+          border: '1px solid rgba(226, 232, 240, 0.95)',
+        }}
+      >
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
           Maintenance Staff Workbench
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
           Technician: {user?.name} ({user?.department || 'Maintenance Team'}) • Assigned Work Orders & Dispatch
         </p>
       </div>
+
+      {/* Critical Emergency Banner */}
+      {emergencies && emergencies.length > 0 && (
+        <div
+          style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.2rem' }}>🚨</span>
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#991b1b' }}>
+                {emergencies.length} Critical Safety {emergencies.length === 1 ? 'Emergency Alert' : 'Emergency Alerts'} Active
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#b91c1c' }}>
+                Immediate field dispatch required for priority containment.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setPriorityFilter('Critical')}
+            style={{
+              padding: '6px 14px',
+              background: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Filter Critical
+          </button>
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="dashboard-grid">

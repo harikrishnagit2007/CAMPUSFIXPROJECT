@@ -38,4 +38,22 @@ public class CampusLocationService {
     public CampusLocation saveLocation(CampusLocation location) {
         return locationRepository.save(location);
     }
+
+    public CampusLocation updateLocation(String id, CampusLocation updated) {
+        CampusLocation existing = getLocationById(id);
+        if (updated.getBuilding() != null) existing.setBuilding(updated.getBuilding());
+        if (updated.getRoom() != null) existing.setRoom(updated.getRoom());
+        if (updated.getFloor() != null) existing.setFloor(updated.getFloor());
+        if (updated.getWing() != null) existing.setWing(updated.getWing());
+        if (updated.getQrCode() != null) existing.setQrCode(updated.getQrCode());
+        if (updated.getActiveComplaints() != null) existing.setActiveComplaints(updated.getActiveComplaints());
+        return locationRepository.save(existing);
+    }
+
+    public void deleteLocation(String id) {
+        if (!locationRepository.existsById(id)) {
+            throw new NoSuchElementException("Location not found with id: " + id);
+        }
+        locationRepository.deleteById(id);
+    }
 }

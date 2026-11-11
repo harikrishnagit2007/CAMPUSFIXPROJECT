@@ -1,68 +1,77 @@
 /**
- * CampusFix Centralized API Service Layer (Firestore Wrapper)
- * Redirects legacy Axios/REST calls to the new Firestore implementation.
+ * CampusFix Centralized API Service Layer
+ * Direct bridge to Spring Boot REST APIs and MySQL backend services.
  */
 
-import { firebaseService } from './firebaseService';
+import { complaintsApi } from '../api/complaints';
+import { lostAndFoundApi } from '../api/lostAndFound';
+import { staffApi } from '../api/staff';
+import { locationsApi } from '../api/locations';
+import { notificationsApi } from '../api/notifications';
+import { authApi } from '../api/auth';
 
 export const complaintsService = {
   fetchActiveComplaints: async () => {
-    const all = await firebaseService.getComplaints();
+    const all = await complaintsApi.getComplaints();
     return all.filter((c) => ['Submitted', 'Under Review', 'Assigned', 'In Progress'].includes(c.status));
   },
-  fetchComplaints: (filters) => firebaseService.getComplaints(null, null), // updated as needed by callers
-  fetchComplaintById: (id) => firebaseService.getComplaints().then(list => list.find(c => c.id === id)),
-  createComplaint: (payload) => firebaseService.createComplaint(payload),
-  updateComplaint: (id, payload) => firebaseService.updateComplaintStatus(id, payload.status),
-  patchComplaint: (id, patchData) => firebaseService.updateComplaintStatus(id, patchData.status),
-  deleteComplaint: (id) => firebaseService.deleteComplaint(id),
-  fetchAnalytics: () => firebaseService.getAnalytics(),
-  fetchEmergencyAlerts: () => Promise.resolve([]),
+  fetchComplaints: (userId, userRole, userEmail) => complaintsApi.getComplaints(userId, userRole, userEmail),
+  fetchComplaintById: async (id) => {
+    const list = await complaintsApi.getComplaints();
+    return list.find((c) => String(c.id) === String(id) || String(c.complaintId) === String(id));
+  },
+  createComplaint: (payload) => complaintsApi.createComplaint(payload),
+  updateComplaint: (id, payload) => complaintsApi.updateStatus(id, payload.status, payload.resolution_notes),
+  patchComplaint: (id, patchData) => complaintsApi.updateStatus(id, patchData.status, patchData.resolution_notes),
+  deleteComplaint: (id) => complaintsApi.deleteComplaint(id),
+  fetchAnalytics: (userId, userRole, userEmail) => complaintsApi.getAnalytics(userId, userRole, userEmail),
+  fetchEmergencyAlerts: () => complaintsApi.getEmergencyAlerts(),
 };
 
 export const lostFoundService = {
-  fetchActiveLostItems: () => firebaseService.getLostFoundItems({ type: 'LOST', status: 'OPEN' }),
-  fetchLostFoundItems: (filters) => firebaseService.getLostFoundItems(filters),
-  fetchLostFoundItemById: (id) => firebaseService.getLostFoundItems().then(list => list.find(i => i.id === id)),
-  createLostFoundItem: (payload) => firebaseService.createLostFoundItem(payload),
-  updateLostFoundItem: (id, payload) => firebaseService.getLostFoundItems().then(() => ({ success: true })), // placeholder
-  patchLostFoundItem: (id, patchData) => firebaseService.getLostFoundItems().then(() => ({ success: true })), // placeholder
-  deleteLostFoundItem: (id) => firebaseService.getLostFoundItems().then(() => ({ success: true })), // placeholder
-  fetchPossibleMatches: (itemId) => firebaseService.fetchPossibleMatches(itemId),
-  submitItemClaim: (payload) => firebaseService.submitItemClaim(payload),
-  fetchItemClaims: (params) => firebaseService.fetchItemClaims(params),
-  updateClaimStatus: (claimId, statusData) => firebaseService.updateClaimStatus(claimId, statusData),
-  fetchLostFoundStats: () => firebaseService.fetchLostFoundStats(),
+  fetchActiveLostItems: () => lostAndFoundApi.getItems({ type: 'LOST', status: 'OPEN' }),
+  fetchLostFoundItems: (filters) => lostAndFoundApi.getItems(filters),
+  fetchLostFoundItemById: (id) => lostAndFoundApi.getItemById(id),
+  createLostFoundItem: (payload) => lostAndFoundApi.createItem(payload),
+  updateLostFoundItem: (id, payload) => lostAndFoundApi.updateItem(id, payload),
+  patchLostFoundItem: (id, patchData) => lostAndFoundApi.updateItem(id, patchData),
+  deleteLostFoundItem: (id) => lostAndFoundApi.deleteItem(id),
+  fetchPossibleMatches: (item) => lostAndFoundApi.findMatches(item),
+  submitItemClaim: (payload) => lostAndFoundApi.submitClaim(payload),
+  fetchItemClaims: (params) => lostAndFoundApi.getClaims(params),
+  updateClaimStatus: (claimId, statusData) =>
+    lostAndFoundApi.updateClaimStatus(claimId, statusData.status, statusData.adminNotes),
+  fetchLostFoundStats: () => lostAndFoundApi.getStats(),
 };
 
 export const staffService = {
-  fetchStaff: (params) => firebaseService.fetchStaff(params),
-  fetchStaffById: (id) => firebaseService.fetchStaffById(id),
-  createStaff: (data) => firebaseService.createStaff(data),
-  updateStaff: (id, data) => firebaseService.updateStaff(id, data),
-  patchStaff: (id, data) => firebaseService.updateStaff(id, data),
-  deleteStaff: (id) => firebaseService.deleteStaff(id),
+  fetchStaff: (params) => staffApi.getStaff(params),
+  fetchStaffById: (id) => staffApi.getStaffMember(id),
+  createStaff: (data) => staffApi.createStaff(data),
+  updateStaff: (id, data) => staffApi.updateStaff(id, data),
+  patchStaff: (id, data) => staffApi.updateStaff(id, data),
+  deleteStaff: (id) => staffApi.deleteStaff(id),
 };
 
 export const locationsService = {
-  fetchLocations: () => firebaseService.fetchLocations(),
-  fetchLocationById: (id) => firebaseService.fetchLocationById(id),
-  createLocation: (data) => firebaseService.createLocation(data),
-  updateLocation: (id, data) => firebaseService.updateLocation(id, data),
-  deleteLocation: (id) => firebaseService.deleteLocation(id),
+  fetchLocations: () => locationsApi.getLocations(),
+  fetchLocationById: (id) => locationsApi.getLocation(id),
+  createLocation: (data) => locationsApi.createLocation(data),
+  updateLocation: (id, data) => locationsApi.updateLocation(id, data),
+  deleteLocation: (id) => locationsApi.deleteLocation(id),
 };
 
 export const usersService = {
-  login: () => Promise.reject('Legacy Auth Disabled'),
-  register: () => Promise.reject('Legacy Auth Disabled'),
-  getCurrentUser: () => Promise.resolve(null),
+  login: (email, password, role) => authApi.login(email, password, role),
+  register: (userData) => authApi.register(userData),
+  getCurrentUser: () => authApi.getCurrentUser(),
   listUsers: () => Promise.resolve([]),
 };
 
 export const notificationsService = {
-  fetchNotifications: () => Promise.resolve([]),
-  markAsRead: () => Promise.resolve(),
-  deleteNotification: () => Promise.resolve(),
+  fetchNotifications: () => notificationsApi.getNotifications(),
+  markAsRead: (id) => notificationsApi.markAsRead(id),
+  deleteNotification: (id) => notificationsApi.deleteNotification(id),
 };
 
 // Direct Named Exports

@@ -220,9 +220,18 @@ public class AuthServiceImpl implements AuthService {
 
         final String finalRole = preferredRole;
         final String finalName = name;
+        final String uid = payload.get("uid");
         User user = userRepository.findByEmail(cleanEmail)
+                .map(existing -> {
+                    if (uid != null && (existing.getFirebaseUid() == null || !existing.getFirebaseUid().equals(uid))) {
+                        existing.setFirebaseUid(uid);
+                        return userRepository.save(existing);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     User newUser = new User();
+                    newUser.setFirebaseUid(uid);
                     newUser.setEmail(cleanEmail);
                     newUser.setUsername(cleanEmail.split("@")[0] + "_" + (int)(Math.random() * 1000));
                     newUser.setName(finalName);

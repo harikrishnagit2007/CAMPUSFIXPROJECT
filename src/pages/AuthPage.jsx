@@ -12,10 +12,22 @@ import { useAuth } from '../context/AuthContext';
 
 export const AuthPage = ({ showToast }) => {
   const { login, register, signInWithGoogle, forgotPassword, resetPassword } = useAuth();
-  
+  const BACKGROUND_VIDEO_URL = 'https://videotourl.com/videos/1794082003507-8cb50f37-be4e-4903-bcd1-fd42a3dcb519.mp4';
+  const videoRef = useRef(null);
 
-  
-  // Selected Role Portal: 'STUDENT' | 'ADMIN' | 'STAFF'
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = true;
+      videoRef.current.playbackRate = 1.0;
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Background video autoplay was restricted:', err);
+        });
+      }
+    }
+  }, []);
   const [selectedPortal, setSelectedPortal] = useState('STUDENT');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -248,7 +260,37 @@ export const AuthPage = ({ showToast }) => {
         overflowY: 'auto',
       }}
     >
-      {/* Subtle overlay for contrast and legibility over the full-screen background image */}
+      {/* Background HTML5 Video */}
+      <video
+        ref={videoRef}
+        src={BACKGROUND_VIDEO_URL}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        onEnded={(e) => {
+          e.target.play().catch(() => {});
+        }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          minWidth: '100%',
+          minHeight: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center center',
+          zIndex: 0,
+          pointerEvents: 'none',
+          filter: 'contrast(1.05) saturate(1.1)',
+        }}
+      >
+        <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
+      </video>
+
+      {/* Crystal clear dark subtle overlay */}
       <div
         style={{
           position: 'fixed',
@@ -256,7 +298,7 @@ export const AuthPage = ({ showToast }) => {
           left: 0,
           width: '100vw',
           height: '100vh',
-          background: 'radial-gradient(circle at center, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.6) 100%)',
+          background: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.45) 100%)',
           zIndex: 1,
           pointerEvents: 'none',
         }}

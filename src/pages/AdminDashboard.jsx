@@ -229,20 +229,26 @@ export const AdminDashboard = ({ showToast }) => {
 
       {/* Header */}
       <div
+        className="welcome-white-box"
         style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '22px 26px',
+          marginBottom: '28px',
+          boxShadow: '0 10px 25px -4px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+          border: '1px solid rgba(226, 232, 240, 0.95)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '16px',
-          marginBottom: '28px',
         }}
       >
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
             Administration Command Center
           </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
             Campus Facilities Operations • Live dispatch, QR smart locations, resolution analytics & technician management.
           </p>
         </div>

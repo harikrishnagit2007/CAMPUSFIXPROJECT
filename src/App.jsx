@@ -74,16 +74,6 @@ function AppContent() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        ...(user
-          ? {
-              backgroundImage: `url('https://cdn.phototourl.com/member/2026-11-09-f2c6cdb0-98aa-4515-b356-beaf7b53eeb7.png')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              backgroundAttachment: 'fixed',
-              backgroundColor: '#0f172a',
-            }
-          : {}),
       }}
     >
       <Navbar
@@ -94,6 +84,7 @@ function AppContent() {
           setIsReportModalOpen(true);
         }}
         onOpenQrScanner={() => setIsGlobalQrScannerOpen(true)}
+        showToast={showToast}
       />
 
       <main
@@ -102,6 +93,13 @@ function AppContent() {
           display: 'flex',
           flexDirection: 'column',
           padding: user ? '20px 16px 48px' : '0',
+          backgroundImage: user
+            ? "url('https://cdn.phototourl.com/member/2026-11-09-f2c6cdb0-98aa-4515-b356-beaf7b53eeb7.png')"
+            : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+          backgroundRepeat: 'no-repeat',
         }}
       >
         {!user ? (

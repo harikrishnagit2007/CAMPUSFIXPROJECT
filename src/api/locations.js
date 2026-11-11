@@ -1,81 +1,59 @@
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  serverTimestamp, 
-  orderBy 
-} from 'firebase/firestore';
-
-const COLLECTION = 'locations';
-
-const handleFirestoreError = (error, operationType, path) => {
-  console.error(`Firestore ${operationType} Error on ${path}:`, error);
-  throw error;
-};
+import { apiClient } from './client';
 
 export const locationsApi = {
   getLocations: async () => {
     try {
-      const q = query(collection(db, COLLECTION), orderBy('building', 'asc'));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const locations = await apiClient('/locations', { method: 'GET' });
+      return Array.isArray(locations) ? locations : [];
     } catch (error) {
-      handleFirestoreError(error, 'list', COLLECTION);
+      console.error('[locationsApi] getLocations error:', error);
+      return [];
     }
   },
 
   getLocation: async (id) => {
     try {
-      const docRef = doc(db, COLLECTION, id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
-      }
-      return null;
+      return await apiClient(`/locations/${id}`, { method: 'GET' });
     } catch (error) {
-      handleFirestoreError(error, 'get', `${COLLECTION}/${id}`);
+      console.error(`[locationsApi] getLocation error for id ${id}:`, error);
+      return null;
+    }
+  },
+
+  getLocationByQr: async (qrCode) => {
+    try {
+      return await apiClient(`/locations/qr/${qrCode}`, { method: 'GET' });
+    } catch (error) {
+      console.error(`[locationsApi] getLocationByQr error:`, error);
+      return null;
     }
   },
 
   createLocation: async (data) => {
-    try {
-      const docRef = await addDoc(collection(db, COLLECTION), {
-        ...data,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...data };
-    } catch (error) {
-      handleFirestoreError(error, 'create', COLLECTION);
-    }
+    return await apiClient('/locations', {
+      method: 'POST',
+      body: {
+        id: data.id || `LOC-${(data.building || 'CAMPUS').slice(0, 3).toUpperCase()}-${data.room || Math.floor(100 + Math.random() * 900)}`,
+        building: data.building,
+        room: data.room,
+        floor: data.floor || '1st Floor',
+        wing: data.wing || 'Main Wing',
+        qrCode: data.qr_code || data.qrCode || `QR-${data.id || Date.now()}`,
+        activeComplaints: data.active_complaints || data.activeComplaints || 0,
+      },
+    });
   },
 
   updateLocation: async (id, data) => {
-    try {
-      const docRef = doc(db, COLLECTION, id);
-      await updateDoc(docRef, {
-        ...data,
-        updated_at: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'update', `${COLLECTION}/${id}`);
-    }
+    return await apiClient(`/locations/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
   },
 
   deleteLocation: async (id) => {
-    try {
-      await deleteDoc(doc(db, COLLECTION, id));
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'delete', `${COLLECTION}/${id}`);
-    }
+    return await apiClient(`/locations/${id}`, {
+      method: 'DELETE',
+    });
   },
 };

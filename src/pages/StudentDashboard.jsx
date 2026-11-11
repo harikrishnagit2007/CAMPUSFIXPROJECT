@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus,
   Search,
   AlertCircle,
   FileText,
@@ -16,7 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { firebaseService } from '../services/firebaseService';
+import { complaintsApi } from '../api/complaints';
 import { locationsApi } from '../api/locations';
 import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
@@ -61,7 +60,7 @@ export const StudentDashboard = ({
   const fetchComplaintsAndStats = async () => {
     setLoading(true);
     try {
-      const myList = await firebaseService.getComplaints(user?.id || user?.uid, user?.role);
+      const myList = await complaintsApi.getComplaints(user?.id || user?.uid, user?.role);
 
       setComplaints(myList);
       setStats({
@@ -162,55 +161,63 @@ export const StudentDashboard = ({
   };
 
   return (
-    <div className="container dashboard-white-box">
-      {/* Student Welcome & Quick Actions */}
+    <div className="container" style={{ padding: '30px 20px' }}>
+
+
+      {/* Student Welcome White Box */}
       <div
-        className="student-welcome-box"
+        className="welcome-white-box"
         style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          padding: '22px 26px',
+          marginBottom: '28px',
+          boxShadow: '0 10px 25px -4px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+          border: '1px solid rgba(226, 232, 240, 0.95)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '16px',
-          marginBottom: '28px',
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
         }}
       >
-        <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            Welcome back, {user?.name || 'Harikrishna GM'}!
-          </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {user?.department || 'Campus Student'} • Track your reported facility issues and resolution updates.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-secondary btn-lg"
-            onClick={() => setIsQrScannerOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <QrCode size={18} />
-            <span>Scan Location QR</span>
-          </button>
-
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={() => {
-              setQrPrefilledLocation(null);
-              onOpenReportModal();
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
             style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-700))',
+              color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 6px 20px rgba(99, 102, 241, 0.4)',
+              justifyContent: 'center',
+              fontSize: '1.35rem',
+              fontWeight: 800,
+              boxShadow: '0 4px 12px var(--primary-glow)',
+              flexShrink: 0,
             }}
           >
-            <Plus size={20} strokeWidth={2.5} />
-            <span>+ Report an Issue</span>
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'S'}
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+              Welcome back, {user?.name || 'Student'}!
+            </h1>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+              {user?.department || 'Campus Student'} • Track your reported facility issues and resolution updates.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setIsQrScannerOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <QrCode size={16} />
+            <span>Scan Location QR</span>
           </button>
         </div>
       </div>

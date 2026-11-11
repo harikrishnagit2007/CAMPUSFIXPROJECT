@@ -1,246 +1,268 @@
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  serverTimestamp, 
-  orderBy 
-} from 'firebase/firestore';
+import { apiClient } from './client';
 
-const ITEMS_COLLECTION = 'lost_found';
-const CLAIMS_COLLECTION = 'claims';
+const normalizeItem = (data) => {
+  if (!data) return null;
+  const id = data.id || data.itemCode || data.item_code;
+  const itemName = data.itemName || data.item_name || data.title || 'Campus Item';
+  const itemCode = data.itemCode || data.item_code || (id ? `ITM-${id}` : 'ITM-NEW');
+  return {
+    ...data,
+    id,
+    itemCode,
+    item_code: itemCode,
+    itemName,
+    item_name: itemName,
+    title: itemName,
+    type: data.type ? data.type.toUpperCase() : 'LOST',
+    category: data.category || 'General',
+    building: data.building || '',
+    location: data.location || data.building || 'Campus Facilities',
+    dateOccurred: data.dateOccurred || data.date_occurred || (data.date ? data.date : new Date().toISOString().split('T')[0]),
+    date_occurred: data.dateOccurred || data.date_occurred || (data.date ? data.date : new Date().toISOString().split('T')[0]),
+    date: data.date || data.dateOccurred || data.date_occurred,
+    approxTime: data.approxTime || data.approx_time || '',
+    approx_time: data.approxTime || data.approx_time || '',
+    description: data.description || '',
+    identifyingMarks: data.identifyingMarks || data.identifying_marks || '',
+    identifying_marks: data.identifyingMarks || data.identifying_marks || '',
+    holdingLocation: data.holdingLocation || data.holding_location || '',
+    holding_location: data.holdingLocation || data.holding_location || '',
+    image: data.image || null,
+    status: data.status || 'OPEN',
+    reporterId: data.reporterId || data.reporter_id || '',
+    reporter_id: data.reporterId || data.reporter_id || '',
+    reporterName: data.reporterName || data.reporter_name || '',
+    reporter_name: data.reporterName || data.reporter_name || '',
+    contactEmail: data.contactEmail || data.contact_email || '',
+    contact_email: data.contactEmail || data.contact_email || '',
+    contactPhone: data.contactPhone || data.contact_phone || '',
+    contact_phone: data.contactPhone || data.contact_phone || '',
+    created_at: data.createdAt || data.created_at || new Date().toISOString(),
+    createdAt: data.createdAt || data.created_at || new Date().toISOString(),
+  };
+};
 
-const handleFirestoreError = (error, operationType, path) => {
-  console.error(`Firestore ${operationType} Error on ${path}:`, error);
-  throw error;
+const normalizeClaim = (data) => {
+  if (!data) return null;
+  const id = data.id || data.claimCode || data.claim_code;
+  const claimCode = data.claimCode || data.claim_code || (id ? `CLM-${id}` : 'CLM-NEW');
+  return {
+    ...data,
+    id,
+    claimCode,
+    claim_code: claimCode,
+    itemId: data.itemId || data.item_id,
+    item_id: data.itemId || data.item_id,
+    itemTitle: data.itemTitle || data.item_title,
+    item_title: data.itemTitle || data.item_title,
+    claimantId: data.claimantId || data.claimant_id,
+    claimant_id: data.claimantId || data.claimant_id,
+    claimantName: data.claimantName || data.claimant_name,
+    claimant_name: data.claimantName || data.claimant_name,
+    claimantEmail: data.claimantEmail || data.claimant_email,
+    claimant_email: data.claimantEmail || data.claimant_email,
+    claimantPhone: data.claimantPhone || data.claimant_phone,
+    claimant_phone: data.claimantPhone || data.claimant_phone,
+    ownershipProof: data.ownershipProof || data.ownership_proof,
+    ownership_proof: data.ownershipProof || data.ownership_proof,
+    status: data.status || 'PENDING',
+    adminNotes: data.adminNotes || data.admin_notes || '',
+    admin_notes: data.adminNotes || data.admin_notes || '',
+    submittedAt: data.submittedAt || data.submitted_at || new Date().toISOString(),
+    submitted_at: data.submittedAt || data.submitted_at || new Date().toISOString(),
+  };
 };
 
 export const lostAndFoundApi = {
+  /**
+   * GET /api/v1/lost-found/items
+   */
   getItems: async (params = {}) => {
     try {
-      let q = collection(db, ITEMS_COLLECTION);
-      
-      const constraints = [];
-      if (params.type && params.type !== 'ALL') {
-        constraints.push(where('type', '==', params.type.toUpperCase()));
-      }
-      if (params.category && params.category !== 'ALL') {
-        constraints.push(where('category', '==', params.category));
-      }
-      if (params.status && params.status !== 'ALL') {
-        constraints.push(where('status', '==', params.status));
-      }
-      
-      // If we have constraints, we need a compound query. 
-      // Note: Firestore might require indexes for some combinations.
-      // We'll also add an order by created_at.
-      let firestoreQuery = query(q, ...constraints, orderBy('created_at', 'desc'));
+      const q = new URLSearchParams();
+      if (params.type && params.type !== 'ALL') q.append('type', params.type.toUpperCase());
+      if (params.category && params.category !== 'ALL') q.append('category', params.category);
+      if (params.building && params.building !== 'ALL') q.append('building', params.building);
+      if (params.status && params.status !== 'ALL') q.append('status', params.status);
+      if (params.query || params.search) q.append('search', params.query || params.search);
 
-      const querySnapshot = await getDocs(firestoreQuery);
-      let items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      // Client-side text search (Firestore doesn't support partial match well without 3rd party)
-      if (params.query && params.query.trim()) {
-        const searchTerm = params.query.toLowerCase();
-        items = items.filter(i => 
-          i.itemName?.toLowerCase().includes(searchTerm) || 
-          i.description?.toLowerCase().includes(searchTerm) || 
-          i.location?.toLowerCase().includes(searchTerm)
-        );
-      }
-
-      return items;
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      const response = await apiClient(`/lost-found/items${qs}`, { method: 'GET' });
+      return Array.isArray(response) ? response.map(normalizeItem) : [];
     } catch (error) {
-      handleFirestoreError(error, 'list', ITEMS_COLLECTION);
+      console.error('[lostAndFoundApi] getItems error:', error);
+      return [];
     }
   },
 
+  /**
+   * GET /api/v1/lost-found/items/{id}
+   */
   getItemById: async (id) => {
     try {
-      const docRef = doc(db, ITEMS_COLLECTION, id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
-      }
+      const response = await apiClient(`/lost-found/items/${id}`, { method: 'GET' });
+      return normalizeItem(response);
+    } catch (error) {
+      console.error(`[lostAndFoundApi] getItemById error for id ${id}:`, error);
       return null;
-    } catch (error) {
-      handleFirestoreError(error, 'get', `${ITEMS_COLLECTION}/${id}`);
     }
   },
 
+  /**
+   * POST /api/v1/lost-found/items or /report
+   */
   createItem: async (payload) => {
-    try {
-      const docRef = await addDoc(collection(db, ITEMS_COLLECTION), {
-        ...payload,
-        status: payload.status || 'OPEN',
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...payload };
-    } catch (error) {
-      handleFirestoreError(error, 'create', ITEMS_COLLECTION);
-    }
+    const body = {
+      type: payload.type ? payload.type.toUpperCase() : 'LOST',
+      itemName: payload.itemName || payload.item_name || payload.title,
+      category: payload.category || 'General',
+      building: payload.building || (payload.location ? payload.location.split('-')[0].trim() : 'Campus Block'),
+      location: payload.location || payload.building || 'Campus',
+      dateOccurred: payload.dateOccurred || payload.date_occurred || payload.date || new Date().toISOString().split('T')[0],
+      approxTime: payload.approxTime || payload.approx_time || '',
+      description: payload.description || '',
+      identifyingMarks: payload.identifyingMarks || payload.identifying_marks || '',
+      holdingLocation: payload.holdingLocation || payload.holding_location || '',
+      image: payload.image || null,
+      status: payload.status || 'OPEN',
+      reporterId: payload.reporterId || payload.reporter_id || '',
+      reporterName: payload.reporterName || payload.reporter_name || '',
+      reporterRole: payload.reporterRole || payload.reporter_role || 'STUDENT',
+      contactEmail: payload.contactEmail || payload.contact_email || '',
+      contactPhone: payload.contactPhone || payload.contact_phone || '',
+    };
+
+    const response = await apiClient('/lost-found/items', {
+      method: 'POST',
+      body,
+    });
+    return normalizeItem(response);
   },
 
+  /**
+   * PUT /api/v1/lost-found/items/{id}
+   */
   updateItem: async (id, payload) => {
-    try {
-      const docRef = doc(db, ITEMS_COLLECTION, id);
-      await updateDoc(docRef, {
-        ...payload,
-        updated_at: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'update', `${ITEMS_COLLECTION}/${id}`);
-    }
+    const body = {
+      type: payload.type ? payload.type.toUpperCase() : 'LOST',
+      itemName: payload.itemName || payload.item_name || payload.title,
+      category: payload.category,
+      building: payload.building,
+      location: payload.location,
+      dateOccurred: payload.dateOccurred || payload.date_occurred || payload.date,
+      approxTime: payload.approxTime || payload.approx_time,
+      description: payload.description,
+      identifyingMarks: payload.identifyingMarks || payload.identifying_marks,
+      holdingLocation: payload.holdingLocation || payload.holding_location,
+      image: payload.image,
+      status: payload.status,
+      reporterId: payload.reporterId || payload.reporter_id,
+      reporterName: payload.reporterName || payload.reporter_name,
+      reporterRole: payload.reporterRole || payload.reporter_role,
+      contactEmail: payload.contactEmail || payload.contact_email,
+      contactPhone: payload.contactPhone || payload.contact_phone,
+    };
+
+    const response = await apiClient(`/lost-found/items/${id}`, {
+      method: 'PUT',
+      body,
+    });
+    return normalizeItem(response);
   },
 
+  /**
+   * DELETE /api/v1/lost-found/items/{id}
+   */
   deleteItem: async (id) => {
-    try {
-      await deleteDoc(doc(db, ITEMS_COLLECTION, id));
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'delete', `${ITEMS_COLLECTION}/${id}`);
-    }
+    return await apiClient(`/lost-found/items/${id}`, {
+      method: 'DELETE',
+    });
   },
 
+  /**
+   * POST /api/v1/lost-found/claims
+   */
   submitClaim: async (payload) => {
-    try {
-      const docRef = await addDoc(collection(db, CLAIMS_COLLECTION), {
-        ...payload,
-        status: 'PENDING',
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-      return { id: docRef.id, ...payload };
-    } catch (error) {
-      handleFirestoreError(error, 'create', CLAIMS_COLLECTION);
-    }
+    const body = {
+      itemId: payload.itemId || payload.item_id,
+      itemTitle: payload.itemTitle || payload.item_title,
+      claimantId: payload.claimantId || payload.claimant_id || '',
+      claimantName: payload.claimantName || payload.claimant_name || '',
+      claimantEmail: payload.claimantEmail || payload.claimant_email || '',
+      claimantPhone: payload.claimantPhone || payload.claimant_phone || '',
+      ownershipProof: payload.ownershipProof || payload.ownership_proof || '',
+      status: payload.status || 'PENDING',
+      adminNotes: payload.adminNotes || payload.admin_notes || '',
+    };
+
+    const response = await apiClient('/lost-found/claims', {
+      method: 'POST',
+      body,
+    });
+    return normalizeClaim(response);
   },
 
+  /**
+   * GET /api/v1/lost-found/claims
+   */
   getClaims: async (params = {}) => {
     try {
-      let q = collection(db, CLAIMS_COLLECTION);
-      const constraints = [];
-      
-      if (params.claimantId) {
-        constraints.push(where('claimantId', '==', params.claimantId));
-      }
-      if (params.itemId) {
-        constraints.push(where('itemId', '==', params.itemId));
-      }
-      if (params.status && params.status !== 'ALL') {
-        constraints.push(where('status', '==', params.status));
-      }
-
-      const firestoreQuery = query(q, ...constraints, orderBy('created_at', 'desc'));
-      const querySnapshot = await getDocs(firestoreQuery);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const q = new URLSearchParams();
+      if (params.status && params.status !== 'ALL') q.append('status', params.status);
+      if (params.claimantId) q.append('claimantId', params.claimantId);
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      const response = await apiClient(`/lost-found/claims${qs}`, { method: 'GET' });
+      return Array.isArray(response) ? response.map(normalizeClaim) : [];
     } catch (error) {
-      handleFirestoreError(error, 'list', CLAIMS_COLLECTION);
+      console.error('[lostAndFoundApi] getClaims error:', error);
+      return [];
     }
   },
 
+  /**
+   * PATCH /api/v1/lost-found/claims/{claimCode}/status
+   */
   updateClaimStatus: async (claimId, newStatus, adminNotes = '') => {
-    try {
-      const docRef = doc(db, CLAIMS_COLLECTION, claimId);
-      await updateDoc(docRef, {
+    const response = await apiClient(`/lost-found/claims/${claimId}/status`, {
+      method: 'PATCH',
+      body: {
         status: newStatus,
-        adminNotes,
-        updated_at: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      handleFirestoreError(error, 'update', `${CLAIMS_COLLECTION}/${claimId}`);
-    }
+        adminNotes: adminNotes,
+      },
+    });
+    return { success: true, claim: normalizeClaim(response) };
   },
 
+  /**
+   * GET /api/v1/lost-found/stats
+   */
   getStats: async () => {
     try {
-      const itemsSnapshot = await getDocs(collection(db, ITEMS_COLLECTION));
-      const claimsSnapshot = await getDocs(collection(db, CLAIMS_COLLECTION));
-      
-      const items = itemsSnapshot.docs.map(d => d.data());
-      const claims = claimsSnapshot.docs.map(d => d.data());
-
+      const stats = await apiClient('/lost-found/stats', { method: 'GET' });
       return {
-        totalLost: items.filter(i => i.type === 'LOST').length,
-        totalFound: items.filter(i => i.type === 'FOUND').length,
-        pendingClaims: claims.filter(c => c.status === 'PENDING').length,
-        returnedCount: items.filter(i => i.status === 'RETURNED').length,
+        totalLost: stats.totalLost !== undefined ? stats.totalLost : 0,
+        totalFound: stats.totalFound !== undefined ? stats.totalFound : 0,
+        pendingClaims: stats.pendingClaims !== undefined ? stats.pendingClaims : 0,
+        returnedCount: stats.returnedCount !== undefined ? stats.returnedCount : 0,
       };
     } catch (error) {
-      console.error('Stats error:', error);
+      console.error('[lostAndFoundApi] getStats error:', error);
       return { totalLost: 0, totalFound: 0, pendingClaims: 0, returnedCount: 0 };
     }
   },
 
+  /**
+   * GET /api/v1/lost-found/items/{id}/matches
+   */
   findMatches: async (targetItem) => {
-    if (!targetItem) return [];
+    if (!targetItem || (!targetItem.id && !targetItem.itemCode)) return [];
     try {
-      const oppositeType = targetItem.type === 'LOST' ? 'FOUND' : 'LOST';
-      const q = query(
-        collection(db, ITEMS_COLLECTION),
-        where('type', '==', oppositeType),
-        where('status', '==', 'OPEN')
-      );
-      const snapshot = await getDocs(q);
-      const candidates = snapshot.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(d => d.id !== targetItem.id);
-
-      const targetWords = `${targetItem.itemName} ${targetItem.description} ${targetItem.identifyingMarks || ''}`
-        .toLowerCase()
-        .split(/\W+/)
-        .filter(w => w.length > 2);
-
-      const matches = [];
-
-      for (const cand of candidates) {
-        let score = 0;
-        const reasons = [];
-
-        if (cand.category === targetItem.category) {
-          score += 40;
-          reasons.push(`Same Category (${cand.category})`);
-        }
-
-        if (cand.building === targetItem.building) {
-          score += 25;
-          reasons.push(`Same Building (${cand.building})`);
-        }
-
-        const candWords = `${cand.itemName} ${cand.description} ${cand.identifyingMarks || ''}`
-          .toLowerCase()
-          .split(/\W+/)
-          .filter(w => w.length > 2);
-
-        const commonWords = targetWords.filter(w => candWords.includes(w));
-        if (commonWords.length > 0) {
-          const keywordScore = Math.min(35, commonWords.length * 10);
-          score += keywordScore;
-          reasons.push(`Keywords matched: "${commonWords.slice(0, 3).join(', ')}"`);
-        }
-
-        if (score >= 30) {
-          matches.push({
-            candidate: cand,
-            matchConfidence: Math.min(score, 98),
-            reasons,
-          });
-        }
-      }
-
-      return matches.sort((a, b) => b.matchConfidence - a.matchConfidence);
+      const id = targetItem.id || targetItem.itemCode;
+      const matches = await apiClient(`/lost-found/items/${id}/matches`, { method: 'GET' });
+      return Array.isArray(matches) ? matches : [];
     } catch (error) {
-      console.error('Match finder error:', error);
+      console.error('[lostAndFoundApi] findMatches error:', error);
       return [];
     }
-  }
+  },
 };
