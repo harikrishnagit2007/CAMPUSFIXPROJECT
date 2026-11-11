@@ -163,6 +163,9 @@ export const AuthPage = ({ showToast }) => {
       if (res && res.resetToken) {
         setSimulatedResetToken(res.resetToken);
         setResetTokenInput(res.resetToken);
+      } else {
+        setSimulatedResetToken('');
+        setResetTokenInput('');
       }
       setForgotStep('confirm');
       if (showToast) showToast('Password reset instructions sent!', 'success');

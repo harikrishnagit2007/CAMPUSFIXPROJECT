@@ -76,16 +76,10 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userOpt.get();
 
-        // Validate password with BCrypt (or fallback check for seeded credentials)
+        // Validate password strictly with BCrypt
         boolean matches = false;
         if (user.getPasswordHash() != null) {
             matches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
-            if (!matches && request.getPassword().equals(user.getPasswordHash())) {
-                matches = true;
-                // Upgrade to BCrypt
-                user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-                userRepository.save(user);
-            }
         }
 
         if (!matches) {
@@ -160,11 +154,11 @@ public class AuthServiceImpl implements AuthService {
         // Generate 6-character uppercase reset token
         String resetToken = "CFX-RST-" + java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         passwordResetTokens.put(cleanEmail, resetToken);
+        System.out.println("[AuthService] Generated password reset token for " + cleanEmail + ": " + resetToken);
 
         return Map.of(
                 "success", true,
-                "message", "Password reset instructions and token sent to " + cleanEmail,
-                "resetToken", resetToken, // Included for seamless testing
+                "message", "Password reset instructions sent to " + cleanEmail,
                 "email", cleanEmail
         );
     }
@@ -179,10 +173,7 @@ public class AuthServiceImpl implements AuthService {
 
         String storedToken = passwordResetTokens.get(cleanEmail);
         if (storedToken == null || !storedToken.equals(cleanToken)) {
-            // For convenience in testing, also allow a master reset token or default bypass if needed, but strict check is primary
-            if (!cleanToken.equals("CFX-MASTER-RESET")) {
-                throw new IllegalArgumentException("Invalid or expired password reset token");
-            }
+            throw new IllegalArgumentException("Invalid or expired password reset token");
         }
 
         User user = userRepository.findByEmail(cleanEmail)
@@ -214,15 +205,23 @@ public class AuthServiceImpl implements AuthService {
             preferredRole = "STUDENT";
         }
         preferredRole = preferredRole.trim().toUpperCase();
+        
+        // Institutional domain security check: default to STUDENT unless explicitly recognized or existing user
         if (!preferredRole.equals("ADMIN") && !preferredRole.equals("STAFF") && !preferredRole.equals("STUDENT")) {
             preferredRole = "STUDENT";
         }
+        // Safety constraint: New self-service Google sign-ins cannot claim ADMIN status unless matched to admin email pattern
+        if (preferredRole.equals("ADMIN") && !cleanEmail.contains("admin")) {
+            preferredRole = "STUDENT";
+        }
 
-        final String finalRole = preferredRole;
+        final String defaultRoleForNewUser = preferredRole;
         final String finalName = name;
         final String uid = payload.get("uid");
+
         User user = userRepository.findByEmail(cleanEmail)
                 .map(existing -> {
+                    // Always preserve existing database user role (do not override with client payload)
                     if (uid != null && (existing.getFirebaseUid() == null || !existing.getFirebaseUid().equals(uid))) {
                         existing.setFirebaseUid(uid);
                         return userRepository.save(existing);
@@ -235,9 +234,9 @@ public class AuthServiceImpl implements AuthService {
                     newUser.setEmail(cleanEmail);
                     newUser.setUsername(cleanEmail.split("@")[0] + "_" + (int)(Math.random() * 1000));
                     newUser.setName(finalName);
-                    newUser.setRole(finalRole);
+                    newUser.setRole(defaultRoleForNewUser);
                     newUser.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
-                    newUser.setDepartment(finalRole.equals("ADMIN") ? "Campus Administration" : (finalRole.equals("STAFF") ? "Maintenance & Facilities" : "Student Department"));
+                    newUser.setDepartment(defaultRoleForNewUser.equals("ADMIN") ? "Campus Administration" : (defaultRoleForNewUser.equals("STAFF") ? "Maintenance & Facilities" : "Student Department"));
                     newUser.setPhone(payload.get("phone") != null ? payload.get("phone") : "+91 98401 23456");
                     return userRepository.save(newUser);
                 });
