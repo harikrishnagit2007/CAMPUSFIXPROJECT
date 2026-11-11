@@ -8,10 +8,11 @@ import com.campusfix.backend.entity.enums.ItemStatus;
 import com.campusfix.backend.entity.enums.ItemType;
 import com.campusfix.backend.repository.ItemClaimRepository;
 import com.campusfix.backend.repository.LostFoundItemRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -48,10 +49,12 @@ public class LostFoundServiceImpl implements LostFoundService {
     @Override
     @Transactional(readOnly = true)
     public List<LostFoundItemResponse> getMyReports(String reporterId) {
-        if (reporterId == null || reporterId.trim().isEmpty()) {
+        String activeUser = getAuthenticatedUsernameOrId();
+        String targetId = (activeUser != null && !activeUser.isEmpty()) ? activeUser : reporterId;
+        if (targetId == null || targetId.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        return itemRepository.findByReporterIdOrderByCreatedAtDesc(reporterId.trim()).stream()
+        return itemRepository.findByReporterIdOrderByCreatedAtDesc(targetId.trim()).stream()
                 .map(LostFoundItemResponse::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -81,8 +84,17 @@ public class LostFoundServiceImpl implements LostFoundService {
         item.setHoldingLocation(request.getHoldingLocation());
         item.setImage(request.getImage());
         item.setStatus(ItemStatus.OPEN);
-        item.setReporterId(request.getReporterId());
-        item.setReporterName(request.getReporterName());
+
+        // Security Fix: Bind reporter identity from Spring Security authentication context
+        String authUser = getAuthenticatedUsernameOrId();
+        if (authUser != null && !authUser.isEmpty()) {
+            item.setReporterId(authUser);
+            item.setReporterName(request.getReporterName() != null && !request.getReporterName().isEmpty() ? request.getReporterName() : authUser);
+        } else {
+            item.setReporterId(request.getReporterId() != null ? request.getReporterId() : "guest_reporter");
+            item.setReporterName(request.getReporterName() != null ? request.getReporterName() : "Campus Reporter");
+        }
+
         item.setReporterRole(request.getReporterRole() != null ? request.getReporterRole() : "STUDENT");
         item.setContactEmail(request.getContactEmail());
         item.setContactPhone(request.getContactPhone());
@@ -94,6 +106,9 @@ public class LostFoundServiceImpl implements LostFoundService {
     @Override
     public LostFoundItemResponse updateItem(String identifier, LostFoundItemRequest request) {
         LostFoundItem item = findItemEntity(identifier);
+
+        // Security Fix: Ownership & Role Verification
+        enforceItemOwnershipOrRole(item, "modify");
 
         if (request.getItemName() != null) item.setItemName(request.getItemName());
         if (request.getCategory() != null) item.setCategory(request.getCategory());
@@ -117,6 +132,9 @@ public class LostFoundServiceImpl implements LostFoundService {
     public LostFoundItemResponse patchItemStatus(String identifier, StatusUpdateRequest request) {
         LostFoundItem item = findItemEntity(identifier);
 
+        // Security Fix: Ownership or Administrative Role Verification
+        enforceItemOwnershipOrRole(item, "update status for");
+
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
                 ItemStatus newStatus = ItemStatus.valueOf(request.getStatus().trim().toUpperCase());
@@ -134,6 +152,10 @@ public class LostFoundServiceImpl implements LostFoundService {
     @Override
     public void deleteItem(String identifier) {
         LostFoundItem item = findItemEntity(identifier);
+
+        // Security Fix: Ownership or Administrative Role Verification
+        enforceItemOwnershipOrRole(item, "delete");
+
         itemRepository.delete(item);
     }
 
@@ -211,13 +233,39 @@ public class LostFoundServiceImpl implements LostFoundService {
         LostFoundItem item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new NoSuchElementException("Item not found for claim: " + request.getItemId()));
 
+        // 1. Prevent filing claims on items that are already returned or closed
+        if (item.getStatus() == ItemStatus.RETURNED || item.getStatus() == ItemStatus.CLOSED) {
+            throw new IllegalArgumentException("Cannot submit an ownership claim for an item that has already been returned or closed.");
+        }
+
+        // Security Fix: Bind claimant identity from Spring Security authentication context
+        String authUser = getAuthenticatedUsernameOrId();
+        String effectiveClaimantId = (authUser != null && !authUser.isEmpty()) ? authUser : (request.getClaimantId() != null ? request.getClaimantId() : "claimant_guest");
+
+        // 2. Prevent conflicting claims if another claim has already been APPROVED or HANDED_OVER for this item
+        List<ItemClaim> existingClaims = claimRepository.findByItemId(item.getId());
+        boolean hasApprovedClaim = existingClaims.stream()
+                .anyMatch(c -> c.getStatus() == ClaimStatus.APPROVED || c.getStatus() == ClaimStatus.HANDED_OVER);
+        if (hasApprovedClaim) {
+            throw new IllegalArgumentException("An ownership claim for this item has already been approved by campus facilities staff.");
+        }
+
+        // 3. Prevent duplicate active claims submitted by the same user for the same item
+        Optional<ItemClaim> duplicateClaim = existingClaims.stream()
+                .filter(c -> effectiveClaimantId.equalsIgnoreCase(c.getClaimantId()) &&
+                        (c.getStatus() == ClaimStatus.PENDING || c.getStatus() == ClaimStatus.UNDER_REVIEW || c.getStatus() == ClaimStatus.APPROVED))
+                .findFirst();
+        if (duplicateClaim.isPresent()) {
+            throw new IllegalArgumentException("You have already submitted an active ownership claim for this item (Claim Code: " + duplicateClaim.get().getClaimCode() + ").");
+        }
+
         ItemClaim claim = new ItemClaim();
         String claimCode = "CLM-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         claim.setClaimCode(claimCode);
         claim.setItem(item);
         claim.setItemTitle(request.getItemTitle() != null ? request.getItemTitle() : item.getItemName());
-        claim.setClaimantId(request.getClaimantId());
-        claim.setClaimantName(request.getClaimantName());
+        claim.setClaimantId(effectiveClaimantId);
+        claim.setClaimantName(request.getClaimantName() != null && !request.getClaimantName().isEmpty() ? request.getClaimantName() : effectiveClaimantId);
         claim.setClaimantEmail(request.getClaimantEmail());
         claim.setClaimantPhone(request.getClaimantPhone());
         claim.setOwnershipProof(request.getOwnershipProof());
@@ -239,10 +287,12 @@ public class LostFoundServiceImpl implements LostFoundService {
     @Override
     @Transactional(readOnly = true)
     public List<ItemClaimResponse> getMyClaims(String claimantId) {
-        if (claimantId == null || claimantId.trim().isEmpty()) {
+        String activeUser = getAuthenticatedUsernameOrId();
+        String targetId = (activeUser != null && !activeUser.isEmpty()) ? activeUser : claimantId;
+        if (targetId == null || targetId.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        return claimRepository.findByClaimantIdOrderBySubmittedAtDesc(claimantId.trim()).stream()
+        return claimRepository.findByClaimantIdOrderBySubmittedAtDesc(targetId.trim()).stream()
                 .map(ItemClaimResponse::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -273,9 +323,35 @@ public class LostFoundServiceImpl implements LostFoundService {
 
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             ClaimStatus newStatus = ClaimStatus.valueOf(request.getStatus().trim().toUpperCase());
-            claim.setStatus(newStatus);
 
-            if (newStatus == ClaimStatus.APPROVED || newStatus == ClaimStatus.HANDED_OVER) {
+            // Workflow Separation Fix: Approval vs. Physical Handover Verification
+            if (newStatus == ClaimStatus.APPROVED) {
+                // Ensure no other claim for this item has ALREADY been approved or handed over
+                List<ItemClaim> existingClaims = claimRepository.findByItemId(claim.getItem().getId());
+                boolean alreadyApprovedOrHandedOver = existingClaims.stream()
+                        .anyMatch(c -> !c.getId().equals(claim.getId()) &&
+                                (c.getStatus() == ClaimStatus.APPROVED || c.getStatus() == ClaimStatus.HANDED_OVER));
+                if (alreadyApprovedOrHandedOver) {
+                    throw new IllegalArgumentException("Another ownership claim for this item has already been approved or handed over.");
+                }
+
+                claim.setStatus(ClaimStatus.APPROVED);
+                claim.getItem().setStatus(ItemStatus.CLAIM_PENDING);
+                claim.getItem().setUpdatedAt(LocalDateTime.now());
+                itemRepository.save(claim.getItem());
+
+                // Automatically reject all other pending / under review claims for the same item
+                for (ItemClaim otherClaim : existingClaims) {
+                    if (!otherClaim.getId().equals(claim.getId()) &&
+                        (otherClaim.getStatus() == ClaimStatus.PENDING || otherClaim.getStatus() == ClaimStatus.UNDER_REVIEW)) {
+                        otherClaim.setStatus(ClaimStatus.REJECTED);
+                        otherClaim.setAdminNotes("Claim automatically rejected because another claim (" + claim.getClaimCode() + ") was approved by facilities staff.");
+                        claimRepository.save(otherClaim);
+                    }
+                }
+            } else if (newStatus == ClaimStatus.HANDED_OVER) {
+                // Handover confirms physical verification and marks item as RETURNED
+                claim.setStatus(ClaimStatus.HANDED_OVER);
                 claim.setVerifiedAt(LocalDateTime.now());
                 if (claim.getItem() != null) {
                     claim.getItem().setStatus(ItemStatus.RETURNED);
@@ -283,10 +359,12 @@ public class LostFoundServiceImpl implements LostFoundService {
                     itemRepository.save(claim.getItem());
                 }
             } else if (newStatus == ClaimStatus.REJECTED) {
-                // If rejected and no other pending claims, revert item status to OPEN
+                claim.setStatus(ClaimStatus.REJECTED);
+                // If rejected and no other pending or approved claims, revert item status back to OPEN
                 if (claim.getItem() != null) {
                     List<ItemClaim> activeClaims = claimRepository.findByItemId(claim.getItem().getId()).stream()
-                            .filter(c -> c.getStatus() == ClaimStatus.PENDING || c.getStatus() == ClaimStatus.UNDER_REVIEW)
+                            .filter(c -> !c.getId().equals(claim.getId()) &&
+                                    (c.getStatus() == ClaimStatus.PENDING || c.getStatus() == ClaimStatus.UNDER_REVIEW || c.getStatus() == ClaimStatus.APPROVED))
                             .collect(Collectors.toList());
                     if (activeClaims.isEmpty()) {
                         claim.getItem().setStatus(ItemStatus.OPEN);
@@ -294,6 +372,8 @@ public class LostFoundServiceImpl implements LostFoundService {
                         itemRepository.save(claim.getItem());
                     }
                 }
+            } else {
+                claim.setStatus(newStatus);
             }
         }
 
@@ -319,6 +399,44 @@ public class LostFoundServiceImpl implements LostFoundService {
                                itemRepository.countByTypeAndStatus(ItemType.FOUND, ItemStatus.RETURNED));
 
         return stats;
+    }
+
+    /**
+     * Helper to extract authenticated username or ID from Spring Security context
+     */
+    private String getAuthenticatedUsernameOrId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            return auth.getName();
+        }
+        return null;
+    }
+
+    /**
+     * Security Helper: Verifies whether current authenticated user is reporter or possesses ADMIN/STAFF authority
+     */
+    private void enforceItemOwnershipOrRole(LostFoundItem item, String actionName) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return; // Permit guest operations if SecurityContext is unauthenticated in demo sandbox
+        }
+
+        boolean isStaffOrAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_STAFF"));
+
+        if (isStaffOrAdmin) {
+            return; // Staff & Admin have full institutional management rights
+        }
+
+        String username = auth.getName();
+        boolean isOwner = username != null && (
+                username.equalsIgnoreCase(item.getReporterId()) ||
+                username.equalsIgnoreCase(item.getContactEmail())
+        );
+
+        if (!isOwner) {
+            throw new IllegalArgumentException("Security Error: You are only authorized to " + actionName + " reports created by your account.");
+        }
     }
 
     private LostFoundItem findItemEntity(String identifier) {
