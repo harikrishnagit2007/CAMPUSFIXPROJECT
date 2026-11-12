@@ -62,7 +62,7 @@ public class SecurityConfig {
 
                 // Student & Authenticated User Data Operations (POST & PATCH)
                 .requestMatchers(HttpMethod.POST, "/api/v1/complaints/**", "/api/complaints/**").hasAnyRole("STUDENT", "STAFF", "ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/v1/lost-found/items", "/api/v1/lost-found/report", "/api/v1/lost-found/claims", "/api/lost-found/claims").hasAnyRole("STUDENT", "STAFF", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/lost-found/items/**", "/api/lost-found/items/**", "/api/v1/lost-found/report/**", "/api/lost-found/report/**", "/api/v1/lost-found/claims/**", "/api/lost-found/claims/**").hasAnyRole("STUDENT", "STAFF", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ai/**", "/api/ai/**", "/api/v1/chat/**", "/api/chat/**").hasAnyRole("STUDENT", "STAFF", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/notifications/*/read", "/api/notifications/*/read", "/api/v1/notifications/mark_all_read", "/api/notifications/mark_all_read").hasAnyRole("STUDENT", "STAFF", "ADMIN")
 

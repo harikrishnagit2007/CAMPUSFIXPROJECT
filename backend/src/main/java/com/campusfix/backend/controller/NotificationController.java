@@ -28,9 +28,15 @@ public class NotificationController {
     @Operation(summary = "List notifications", description = "Get notifications for the current user or role")
     @GetMapping({"", "/"})
     public ResponseEntity<List<NotificationResponse>> getNotifications(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @RequestHeader(value = "X-User-Role", required = false) String role
     ) {
+        Long userId = null;
+        if (userIdHeader != null && !userIdHeader.trim().isEmpty()) {
+            try {
+                userId = Long.valueOf(userIdHeader.trim());
+            } catch (NumberFormatException ignored) {}
+        }
         return ResponseEntity.ok(notificationService.getNotifications(userId, role));
     }
 
@@ -43,9 +49,15 @@ public class NotificationController {
     @Operation(summary = "Mark all notifications as read")
     @PostMapping({"/mark_all_read", "/mark_all_read/", "/mark-all-read"})
     public ResponseEntity<Map<String, String>> markAllAsRead(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @RequestHeader(value = "X-User-Role", required = false) String role
     ) {
+        Long userId = null;
+        if (userIdHeader != null && !userIdHeader.trim().isEmpty()) {
+            try {
+                userId = Long.valueOf(userIdHeader.trim());
+            } catch (NumberFormatException ignored) {}
+        }
         notificationService.markAllAsRead(userId, role);
         return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
     }
