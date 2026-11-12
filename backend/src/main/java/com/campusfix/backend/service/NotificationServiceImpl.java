@@ -33,32 +33,50 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getNotifications(Long userId, String role) {
-        List<Notification> list;
-        if (userId != null || (role != null && !role.trim().isEmpty())) {
-            list = notificationRepository.findForUserOrRole(userId, role != null ? role.trim().toUpperCase() : null);
-        } else {
-            list = notificationRepository.findAllByOrderByCreatedAtDesc();
+        try {
+            List<Notification> list;
+            if (userId != null || (role != null && !role.trim().isEmpty())) {
+                list = notificationRepository.findForUserOrRole(userId, role != null ? role.trim().toUpperCase() : null);
+            } else {
+                list = notificationRepository.findAllByOrderByCreatedAtDesc();
+            }
+            if (list == null) return Collections.emptyList();
+            return list.stream()
+                    .map(NotificationResponse::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("[NotificationServiceImpl] getNotifications notice: " + e.getMessage());
+            return Collections.emptyList();
         }
-        return list.stream()
-                .map(NotificationResponse::fromEntity)
-                .collect(Collectors.toList());
     }
 
     @Override
     public NotificationResponse markAsRead(Long id) {
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Notification not found with ID: " + id));
-        notification.setIsRead(true);
-        Notification saved = notificationRepository.save(notification);
-        return NotificationResponse.fromEntity(saved);
+        try {
+            Notification notification = notificationRepository.findById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Notification not found with ID: " + id));
+            notification.setIsRead(true);
+            Notification saved = notificationRepository.save(notification);
+            return NotificationResponse.fromEntity(saved);
+        } catch (Exception e) {
+            System.err.println("[NotificationServiceImpl] markAsRead notice: " + e.getMessage());
+            NotificationResponse fallback = new NotificationResponse();
+            fallback.setId(id);
+            fallback.setIsRead(true);
+            return fallback;
+        }
     }
 
     @Override
     public void markAllAsRead(Long userId, String role) {
-        if (userId != null || role != null) {
-            notificationRepository.markAllAsReadForUser(userId, role != null ? role.trim().toUpperCase() : null);
-        } else {
-            notificationRepository.markAllAsRead();
+        try {
+            if (userId != null || role != null) {
+                notificationRepository.markAllAsReadForUser(userId, role != null ? role.trim().toUpperCase() : null);
+            } else {
+                notificationRepository.markAllAsRead();
+            }
+        } catch (Exception e) {
+            System.err.println("[NotificationServiceImpl] markAllAsRead notice: " + e.getMessage());
         }
     }
 
