@@ -238,12 +238,13 @@ export const lostAndFoundApi = {
    */
   getStats: async () => {
     try {
-      const stats = await apiClient('/lost-found/stats', { method: 'GET' });
+      const stats = await apiClient('/lost-found/stats', { method: 'GET', silentError: true });
+      if (!stats) return { totalLost: 0, totalFound: 0, pendingClaims: 0, returnedCount: 0 };
       return {
-        totalLost: stats.totalLost !== undefined ? stats.totalLost : 0,
-        totalFound: stats.totalFound !== undefined ? stats.totalFound : 0,
-        pendingClaims: stats.pendingClaims !== undefined ? stats.pendingClaims : 0,
-        returnedCount: stats.returnedCount !== undefined ? stats.returnedCount : 0,
+        totalLost: stats.totalLost !== undefined ? stats.totalLost : (stats.total_lost !== undefined ? stats.total_lost : 0),
+        totalFound: stats.totalFound !== undefined ? stats.totalFound : (stats.total_found !== undefined ? stats.total_found : 0),
+        pendingClaims: stats.pendingClaims !== undefined ? stats.pendingClaims : (stats.pending_claims !== undefined ? stats.pending_claims : 0),
+        returnedCount: stats.returnedCount !== undefined ? stats.returnedCount : (stats.returned_count !== undefined ? stats.returned_count : 0),
       };
     } catch (error) {
       console.error('[lostAndFoundApi] getStats error:', error);

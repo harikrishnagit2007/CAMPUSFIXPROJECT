@@ -243,7 +243,8 @@ export const LostFoundModule = ({ showToast }) => {
       };
 
       const created = await lostFoundService.createLostFoundItem(payload);
-      if (showToast) showToast(`Lost item report (#${created.itemCode || created.id}) registered successfully!`, 'success');
+      const itemCodeLabel = created?.itemCode || created?.item_code || created?.id || 'NEW';
+      if (showToast) showToast(`Lost item report (#${itemCodeLabel}) registered successfully!`, 'success');
 
       // Reset form
       setLostForm({
@@ -302,7 +303,8 @@ export const LostFoundModule = ({ showToast }) => {
       };
 
       const created = await lostFoundService.createLostFoundItem(payload);
-      if (showToast) showToast(`Found item (#${created.itemCode || created.id}) cataloged successfully!`, 'success');
+      const foundCodeLabel = created?.itemCode || created?.item_code || created?.id || 'NEW';
+      if (showToast) showToast(`Found item (#${foundCodeLabel}) cataloged successfully!`, 'success');
 
       setFoundForm({
         itemName: '',
@@ -350,7 +352,8 @@ export const LostFoundModule = ({ showToast }) => {
       };
 
       const claim = await lostFoundService.submitItemClaim(payload);
-      if (showToast) showToast(`Claim Request #${claim.claimCode || claim.id} submitted for staff review!`, 'success');
+      const claimCodeLabel = claim?.claimCode || claim?.claim_code || claim?.id || 'NEW';
+      if (showToast) showToast(`Claim Request #${claimCodeLabel} submitted for staff review!`, 'success');
 
       setClaimingItem(null);
       setClaimProof('');
